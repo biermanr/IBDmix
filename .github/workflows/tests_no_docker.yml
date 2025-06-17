@@ -37,5 +37,5 @@ jobs:
         run: |
           sudo apt-get install -y valgrind
 
-          ls tests/*_test | \
+          ls tests/test_* | \
             xargs -I{} valgrind --error-exitcode=1 --leak-check=yes ./{} --gtest_shuffle --gtest_repeat=10 > /dev/null
