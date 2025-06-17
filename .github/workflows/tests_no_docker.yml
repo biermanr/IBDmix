@@ -31,3 +31,11 @@ jobs:
       - name: Test
         working-directory: ${{github.workspace}}/build
         run: ctest
+
+      - name: valgrind
+        if: matrix.os == 'ubuntu-latest' && matrix.cmake-version == '3.16'
+        run: |
+          sudo apt-get install -y valgrind
+
+          ls tests/*_test | \
+            xargs -I{} valgrind --error-exitcode=1 --leak-check=yes ./{} --gtest_shuffle --gtest_repeat=10 > /dev/null
