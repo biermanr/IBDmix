@@ -1,4 +1,4 @@
-name: UnitTests
+name: UnitTests no custom action
 on: [push, pull_request, workflow_dispatch]
 
 jobs:
@@ -33,7 +33,7 @@ jobs:
         run: ctest
 
       - name: valgrind
-        if: matrix.os == 'ubuntu-latest' && matrix.cmake-version == '3.16'
+        if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/build
         run: |
           sudo apt-get install -y valgrind
