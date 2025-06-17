@@ -3,9 +3,19 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   test:
-    name: CTest
-    runs-on: ubuntu-latest
+    name: cmake and ctest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-22.04, macos-latest, windows-latest]
+        cmake-version: ['3.14', '3.15', '3.16']
+
     steps:
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '${{ matrix.cmake-version }}.x'
+
       - name: Checkout
         uses: actions/checkout@v4
 
