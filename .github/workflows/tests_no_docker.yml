@@ -10,12 +10,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure CMake
-        run: cmake -B ${{github.workspace}}/build
+        run: cmake -B ${{github.workspace}}/build -DBUILD_TESTS=ON
 
       - name: Build
         run: |
-          mkdir build_tmp
-          cd build_tmp
-          cmake .. -DBUILD_TESTS=ON
-          cmake --build .
-          ctest
+          cmake --build ${{github.workspace}}/build
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        run: ctest
