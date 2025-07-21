@@ -39,4 +39,4 @@ jobs:
       - name: ${{ matrix.test_type }}
         working-directory: ${{github.workspace}}
         run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh ${{ matrix.test_type }}
+          ./.github/workflows/acceptance_test.sh ${{ matrix.test_type }}
