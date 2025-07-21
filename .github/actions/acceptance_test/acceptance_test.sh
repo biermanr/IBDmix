@@ -4,8 +4,8 @@ set -euo pipefail
 
 test_type=$1
 
-ibdmix="src/ibdmix"
-generate_gt="src/generate_gt"
+ibdmix="build/src/ibdmix"
+generate_gt="build/src/generate_gt"
 # to work for local tests use `ibdmix` and `generate_gt`
 # executables in IBDmix/build/src folder following README
 if [[ ! -f $ibdmix ]]; then

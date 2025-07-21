@@ -1,4 +1,4 @@
-description: 'Run acceptance test on data hosted through tigress-web'
+description: 'Run acceptance test on data hosted through Zenodo'
 inputs:
   type:
     description: 'Type to run'
