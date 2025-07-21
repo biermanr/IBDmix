@@ -19,11 +19,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Make script executable
-        run: chmod +x ./.github/workflows/acceptance_test.sh
 
       - name: Install dependencies
         run: |
@@ -42,4 +37,4 @@ jobs:
       - name: ${{ matrix.test_type }}
         working-directory: ${{github.workspace}}
         run: |
-          ./.github/workflows/acceptance_test.sh ${{ matrix.test_type }}
+          ./scripts/acceptance_test.sh ${{ matrix.test_type }}
