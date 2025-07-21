@@ -22,6 +22,9 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Make script executable
+        run: chmod +x ./.github/workflows/acceptance_test.sh
+
       - name: Install dependencies
         run: |
           sudo apt-get update
