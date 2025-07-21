@@ -4,9 +4,13 @@ on: [push, pull_request, workflow_dispatch]
 # TODO: generate_gt, generate_gt with tabs, population with mask, all with mask
 # all with no mask, inclusive end and stats
 jobs:
-  generate_gt:
-    name: Generate GT
+  acceptance_tests:
+    name: Acceptance Tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test_type: [gen_20, populations, all_mask, all_no_mask, extra]
+
     steps:
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
@@ -32,139 +36,7 @@ jobs:
         run: |
           cmake --build ${{github.workspace}}/build
 
-      - name: Chromosome 20, all populations
+      - name: ${{ matrix.test_type }}
         working-directory: ${{github.workspace}}
         run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh gen_20
-
-  populations:
-    name: Population ibdmix
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.16.x'
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget ca-certificates
-
-      - name: Configure CMake
-        run: |
-          cmake -B ${{github.workspace}}/build
-          cmake --version
-
-      - name: Build
-        run: |
-          cmake --build ${{github.workspace}}/build
-
-      - name: Chromosome 20, different populations
-        working-directory: ${{github.workspace}}
-        run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh populations
-
-  all_mask:
-    name: All samples with mask
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.16.x'
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget ca-certificates
-
-      - name: Configure CMake
-        run: |
-          cmake -B ${{github.workspace}}/build
-          cmake --version
-
-      - name: Build
-        run: |
-          cmake --build ${{github.workspace}}/build
-
-      - name: All populations with a mask
-        working-directory: ${{github.workspace}}
-        run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh all_mask
-
-  all_no_mask:
-    name: All samples without mask
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.16.x'
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget ca-certificates
-
-      - name: Configure CMake
-        run: |
-          cmake -B ${{github.workspace}}/build
-          cmake --version
-
-      - name: Build
-        run: |
-          cmake --build ${{github.workspace}}/build
-
-      - name: All populations without a mask
-        working-directory: ${{github.workspace}}
-        run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh all_no_mask
-
-  extras:
-    name: Test extra options
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup CMake
-        uses: jwlawson/actions-setup-cmake@v2
-        with:
-          cmake-version: '3.16.x'
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget ca-certificates
-
-      - name: Configure CMake
-        run: |
-          cmake -B ${{github.workspace}}/build
-          cmake --version
-
-      - name: Build
-        run: |
-          cmake --build ${{github.workspace}}/build
-
-      - name: GWD with stats and inclusive
-        working-directory: ${{github.workspace}}
-        run: |
-          ./.github/actions/acceptance_test/acceptance_test.sh extra
+          ./.github/actions/acceptance_test/acceptance_test.sh ${{ matrix.test_type }}
