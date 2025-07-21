@@ -36,7 +36,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/build
         run: |
-          sudo apt-get install -y valgrind
+          sudo apt-get update && sudo apt-get install -y valgrind
 
           ls tests/*_test | \
             xargs -I{} valgrind --error-exitcode=1 --leak-check=yes ./{} --gtest_shuffle --gtest_repeat=10 > /dev/null
