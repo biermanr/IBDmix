@@ -13,7 +13,9 @@ class Mask_Reader {
 
  private:
   std::string chromosome = "";
+  std::string prev_chromosome = "";
   uint64_t start, end;
+  uint64_t prev_start = 0;
   std::istream *mask = nullptr;
   void readline();
 };

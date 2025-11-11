@@ -34,7 +34,23 @@ void Mask_Reader::readline() {
       chromosome = "";
       throw std::invalid_argument("Unable to read mask file " + line);
     }
+    validate_sorted();
   } else {
     chromosome = "";
   }
+}
+
+void Mask_Reader::validate_sorted() {
+  // Not assuming to know how the chromosomes should be ordered
+  if (chromosome != prev_chromosome) {
+    prev_chromosome = chromosome;
+    prev_start = start;
+    return;
+  } 
+
+  if (start < prev_start) {
+    throw std::invalid_argument("Mask file not sorted: " + chromosome +
+                                " " + std::to_string(start));
+  }
+  prev_start = start;
 }
