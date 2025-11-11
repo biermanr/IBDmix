@@ -41,16 +41,29 @@ void Mask_Reader::readline() {
 }
 
 void Mask_Reader::validate_sorted() {
-  // Not assuming to know how the chromosomes should be ordered
-  if (chromosome != prev_chromosome) {
-    prev_chromosome = chromosome;
-    prev_start = start;
-    return;
-  } 
-
-  if (start < prev_start) {
-    throw std::invalid_argument("Mask file not sorted: " + chromosome +
-                                " " + std::to_string(start));
+  if (start > end) {
+    throw std::invalid_argument("Mask file has start > end for " + 
+                                chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
   }
+
+
+  if (chromosome == prev_chromosome) {
+    if (start < prev_start) {
+      throw std::invalid_argument("Mask file not sorted. " + 
+                                  prev_chromosome + ":" + std::to_string(prev_start)+"-"+std::to_string(prev_end) +
+                                  " comes before " +
+                                  chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
+    }
+  } 
+  else {
+    if (chromosome_order.find(chromosome) != chromosome_order.end()) {
+      throw std::invalid_argument("Mask file not sorted. Chromosome " + chromosome +
+                                  " appears multiple times out of order.");
+    }
+    chromosome_order.insert(chromosome);
+    prev_chromosome = chromosome;
+  }
+
   prev_start = start;
+  prev_end = end;
 }
