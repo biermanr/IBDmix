@@ -32,6 +32,25 @@ bool Genotype_Reader::update() {
   // return false if the file is read fully
   if (!(iss >> chromosome && iss >> position)) return false;
 
+  // check position and chromosome order
+  if (chromosome == prev_chromosome) {
+    if (position <= prev_position) {
+      throw std::invalid_argument("Genotype file not sorted. " +
+                                  prev_chromosome + ":" +
+                                  std::to_string(prev_position) +
+                                  " comes before " + chromosome + ":" +
+                                  std::to_string(position));
+    }
+  } else {
+    if (chromosome_order.find(chromosome) != chromosome_order.end()) {
+      throw std::invalid_argument("Genotype file not sorted. Chromosome " +
+                                  chromosome + " appears multiple times out of order.");
+    }
+    chromosome_order.insert(prev_chromosome);
+  }
+  prev_chromosome = chromosome;
+  prev_position = position;
+
   iss >> token;  // ref
   ref = token[0];
   iss >> token;  // alt

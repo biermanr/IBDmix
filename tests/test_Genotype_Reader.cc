@@ -440,3 +440,55 @@ TEST_F(SampleGenotype, CanCheckLineFilter) {
   // eof
   ASSERT_FALSE(reader.update());
 }
+
+TEST(GenotypeReader, DisorderedPositionInGenotypeThrows) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t1\tA\tT\t1\t0\t1\t1\t1\n"
+      "2\t3\tA\tT\t2\t0\t0\t0\t0\n");
+  Genotype_Reader reader(&genotype);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  ASSERT_TRUE(reader.update()); // Pos 2 on chr 1 ok
+  EXPECT_THROW(reader.update(), std::invalid_argument); // Pos 1 on chr 1 not ok
+}
+
+TEST(GenotypeReader, DisorderedChromosomesInGenotypeThrows) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+      "2\t3\tA\tT\t2\t0\t0\t0\t0\n"
+      "1\t4\tA\tT\t1\t0\t1\t1\t1\n");
+  Genotype_Reader reader(&genotype);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  ASSERT_TRUE(reader.update()); // first chr 1 ok
+  ASSERT_TRUE(reader.update()); // chr 2 ok
+  EXPECT_THROW(reader.update(), std::invalid_argument); // back to chr 1 not ok
+}
+
+
+// protected:
+//  void SetUp() {
+//    genotype.str(
+//        "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+//        "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+//        "1\t3\tA\tT\t2\t0\t0\t0\t0\n"
+//        "1\t4\tA\tT\t1\t0\t1\t1\t1\n"
+//        "1\t104\tA\tT\t1\t0\t1\t1\t1\n"
+//        "1\t105\tA\tT\t0\t2\t1\t1\t1\n"
+//        "2\t125\tA\tT\t0\t2\t2\t1\t1\n"
+//        "3\t126\tA\tT\t0\t2\t2\t2\t2\n");
+//    mask.str(
+//        "1 100 120\n"
+//        "1 130 140\n"
+//        "1 160 161\n"
+//        "1 190 200\n"
+//        "1 260 281\n"
+//        "2 130 140\n"
+//        "4 130 140\n"
+//        "8 130 140\n");
+//  }

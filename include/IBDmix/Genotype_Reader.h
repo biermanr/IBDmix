@@ -1,5 +1,6 @@
 #pragma once
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -63,6 +64,10 @@ class Genotype_Reader {
   char ref;
   uint64_t position;
   double allele_frequency = 0;
+
+  std::string prev_chromosome;
+  uint64_t prev_position = 0;
+  std::set<std::string> chromosome_order;
 
   bool find_frequency();
   void process_line_buffer(bool selected);
