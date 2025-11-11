@@ -67,3 +67,27 @@ TEST(MaskReader, CanTestInMask) {
   Mask_Reader mask2(nullptr);
   ASSERT_FALSE(mask2.in_mask("1", 161));
 }
+
+TEST(MaskReader, DisorderedMaskFileThrows) {
+  std::istringstream mask_input(
+      "1 130 140\n"
+      "1 260 281\n"
+      "2 130 140\n"
+      "4 130 140\n"
+      "4 120 130\n"
+  );
+
+  Mask_Reader mask(&mask_input);
+
+  // Walk through the mask by asking for positions in order
+  ASSERT_TRUE(mask.in_mask("1", 135));
+  ASSERT_TRUE(mask.in_mask("1", 270));
+  ASSERT_TRUE(mask.in_mask("2", 135));
+  ASSERT_TRUE(mask.in_mask("4", 135));
+
+  // Asking for the same position again should still work since mask reader not advanced
+  ASSERT_TRUE(mask.in_mask("4", 135));
+
+  // Asking for a position that requires advancing the mask reader should now throw
+  ASSERT_THROW(mask.in_mask("4", 145), std::invalid_argument);
+}

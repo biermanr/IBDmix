@@ -18,4 +18,5 @@ class Mask_Reader {
   uint64_t prev_start = 0;
   std::istream *mask = nullptr;
   void readline();
+  void validate_sorted();
 };
