@@ -57,10 +57,10 @@ bool Mask_Reader::in_mask(const std::string &chrom, uint64_t position) {
       else
         return true;  // start < position <= end
     } else {
-      // If the chromosome is not found in the mask, return false and do not advance the mask
+      // If the chrom is not in the mask, return false and do not advance the mask
       if (find(chromosome_order.begin(), chromosome_order.end(), chrom) == chromosome_order.end()) {
         return false;
-      } 
+      }
       readline();
     }
   }

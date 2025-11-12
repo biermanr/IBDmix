@@ -17,6 +17,13 @@ echo "starting $test_type"
 
 url_base="https://zenodo.org/records/15127123/files"
 
+# Download mask file because it gets read in multiple passes.
+# This also avoid multiple wget calls
+mask_file="cell_data_masks_chr20.bed"
+if [[ ! -f $mask_file ]]; then
+    echo "Downloading $mask_file..."
+    wget -qO - "$url_base/$mask_file" > "$mask_file"
+fi
 
 read_result() {
     wget -qO - $1 | zcat
@@ -40,7 +47,7 @@ run_ibd_pop() {
     $ibdmix \
         -g <(wget -qO - $1 | zcat) \
         -s <(wget -qO - $2) \
-        -r <(wget -qO - $3) \
+        -r $3 \
         -d 3.0 \
         -m 1 \
         -a 0.01 \
@@ -54,7 +61,7 @@ run_ibd_pop_long() {
     $ibdmix \
         --genotype <(wget -qO - $1 | zcat) \
         --sample <(wget -qO - $2) \
-        --mask <(wget -qO - $3) \
+        --mask $3 \
         --LOD-threshold 3.0 \
         --minor-allele-count-threshold 1 \
         --archaic-error 0.01 \
@@ -67,7 +74,7 @@ run_ibd_pop_long() {
 run_ibd_all_mask() {
     $ibdmix \
         -g <(wget -qO - $1 | zcat) \
-        -r <(wget -qO - $2) \
+        -r $2 \
         --output >( tail -n +2 )
     # the tail removes the header, which was absent in reference for these
 }
@@ -92,7 +99,7 @@ run_ibd_extra_mask() {
         -g <(wget -qO - $1 | zcat) \
         -s <(wget -qO - "$url_base/cell_data_samples_GWD.txt") \
         $2 \
-        -r <(wget -qO - $3) \
+        -r $3 \
         --output >( cat )
 }
 
@@ -113,26 +120,24 @@ elif [[ $test_type == "populations" ]]; then
 
         genotype="$url_base/cell_data_outputs_genotype_altai_1kg_20.gz"
         sample="$url_base/cell_data_samples_${pop}.txt"
-        mask="$url_base/cell_data_masks_chr20.bed"
 
         cmp \
             <(read_result "$resultfile") \
-            <(run_ibd_pop $genotype $sample $mask)
+            <(run_ibd_pop $genotype $sample $mask_file)
     done
     # one more for the long args
     cmp \
         <(read_result "$resultfile") \
-        <(run_ibd_pop_long $genotype $sample $mask)
+        <(run_ibd_pop_long $genotype $sample $mask_file)
 
 elif [[ $test_type == "all_mask" ]]; then
     resultfile="$url_base/cell_data_outputs_ibd_raw_all_with_mask.gz"
 
     genotype="$url_base/cell_data_outputs_genotype_altai_1kg_20.gz"
-    mask="$url_base/cell_data_masks_chr20.bed"
 
     cmp \
         <(read_result "$resultfile") \
-        <(run_ibd_all_mask $genotype $mask)
+        <(run_ibd_all_mask $genotype $mask_file)
 
 elif [[ $test_type == "all_no_mask" ]]; then
     resultfile="$url_base/cell_data_outputs_ibd_raw_all_no_mask.gz"
@@ -145,7 +150,6 @@ elif [[ $test_type == "all_no_mask" ]]; then
 
 elif [[ $test_type == "extra" ]]; then
     genotype="$url_base/cell_data_outputs_genotype_altai_1kg_20.gz"
-    mask="$url_base/cell_data_masks_chr20.bed"
 
     echo "with tab"
     resultfile="$url_base/terminal_tab_genotype.out.gz"
@@ -189,17 +193,22 @@ elif [[ $test_type == "extra" ]]; then
     resultfile="$url_base/cell_data_outputs_ibd_raw_GWD_20_itw_mask.gz"
     cmp \
         <(read_result "$resultfile") \
-        <(run_ibd_extra_mask $genotype "-itw" $mask)
+        <(run_ibd_extra_mask $genotype "-itw" $mask_file)
 
     echo "short args mask string chroms"
     resultfile="$url_base/cell_data_outputs_ibd_raw_GWD_20_itw_mask.gz"
+
+    str_chrom_mask_file="cell_data_masks_chr20_string.bed"
+    awk 'BEGIN {OFS="\t"} {$1 = "chr" $1 ; print $0}' $mask_file > $str_chrom_mask_file
+
+
     cmp \
         <(read_result "$resultfile" | awk 'BEGIN {OFS="\t"} NR>1{$2 = "chr" $2} {print $0}' | head) \
         <($ibdmix \
             -g <(wget -qO - $genotype | zcat | awk  'BEGIN {OFS="\t"} NR>1{$1 = "chr" $1} {print $0}') \
             -s <(wget -qO - "$url_base/cell_data_samples_GWD.txt") \
             -itw \
-            -r <(wget -qO - $mask | awk  'BEGIN {OFS="\t"} {$1 = "chr" $1 ; print $0}') \
+            -r $str_chrom_mask_file \
             --output >( head ) \
          )
 
