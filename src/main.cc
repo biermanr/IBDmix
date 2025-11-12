@@ -113,6 +113,11 @@ int main(int argc, char *argv[]) {
 
   while (reader.update()) ibds.update(reader, output);
 
+  // TODO should these checks be in Genotype_Reader instead of main?
+  reader.mask_genotype_chr_prefix_naming_consistent();
+  reader.compare_mask_chromosome_ordering();
+  reader.report_summary_mask_statistics();
+
   ibds.purge(output);
 
   genotype.close();

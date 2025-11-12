@@ -1,8 +1,8 @@
 #pragma once
 
-#include <set>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "IBDmix/Mask_Reader.h"
 #include "IBDmix/Sample_Mapper.h"
@@ -28,6 +28,9 @@ class Genotype_Reader {
 
   int initialize(std::istream &samples, std::string archaic = "");
   bool update(void);
+  bool mask_genotype_chr_prefix_naming_consistent();
+  bool compare_mask_chromosome_ordering();
+  void report_summary_mask_statistics();
 
   const std::vector<std::string> &get_samples() const;
   int num_samples() const { return sample_mapper.size(); }
@@ -43,6 +46,8 @@ class Genotype_Reader {
   uint64_t getPosition() const { return position; }
   double getAlleleFrequency() const { return allele_frequency; }
   const std::string &getChromosome() const { return chromosome; }
+  const std::vector<std::string> &getChromosomeOrder() const { return chromosome_order; }
+  const std::map<std::string, int> &getNlociMaskedPerChromosome() const { return nloci_masked_per_chromosome; }
 
  private:
   Mask_Reader mask;
@@ -67,7 +72,8 @@ class Genotype_Reader {
 
   std::string prev_chromosome;
   uint64_t prev_position = 0;
-  std::set<std::string> chromosome_order;
+  std::vector<std::string> chromosome_order;
+  std::map<std::string, int> nloci_masked_per_chromosome;
 
   bool find_frequency();
   void process_line_buffer(bool selected);

@@ -1,26 +1,67 @@
 #include "IBDmix/Mask_Reader.h"
 
+void Mask_Reader::scan_pass() {
+  if (mask == nullptr) return;
+  readline();
+
+  while (chromosome != "") {
+
+    if (start > end) {
+      throw std::invalid_argument("Mask file has start > end for " + 
+                                  chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
+    }
+    
+    if (chromosome == prev_chromosome) {
+      if (start < prev_start) {
+        throw std::invalid_argument("Mask file not sorted. " + 
+                                    prev_chromosome + ":" + std::to_string(prev_start)+"-"+std::to_string(prev_end) +
+                                    " comes before " +
+                                    chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
+      }
+    }
+
+    if(chromosome != prev_chromosome){
+      if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) == chromosome_order.end()) {
+        chromosome_order.push_back(chromosome);
+      } else {
+        throw std::invalid_argument("Mask file not sorted. Chromosome " + chromosome +
+                                    " appears multiple times out of order.");
+      }
+    }
+
+    prev_chromosome = chromosome;
+    prev_start = start;
+    prev_end = end;
+    readline();
+  }
+
+  // reset to beginning
+  mask->clear();
+  mask->seekg(0);
+  chromosome = "";
+  prev_chromosome = "";
+  readline();
+}
+
 bool Mask_Reader::in_mask(const std::string &chrom, uint64_t position) {
-  // test if chrom/position is in mask file
-  // assume queries are sorted in same order as mask file!
-  // true if position is in (start, end]
   if (mask == nullptr) return false;
 
   for (;;) {
-    if (chrom == chromosome) {
+    if (chromosome == "") {
+      return false;
+    } else if (chrom == chromosome) {
       if (position <= start)
         return false;
       else if (end < position)
         readline();
       else
         return true;  // start < position <= end
-    } else if (chromosome == "") {
-      return false;
-      // this assumes same order. may fail with numeric vs lexigraphic sort
-    } else if (chromosome < chrom) {
-      readline();
     } else {
-      return false;
+      // If the chromosome is not found in the mask, return false and do not advance the mask
+      if (find(chromosome_order.begin(), chromosome_order.end(), chrom) == chromosome_order.end()) {
+        return false;
+      } 
+      readline();
     }
   }
 }
@@ -34,36 +75,7 @@ void Mask_Reader::readline() {
       chromosome = "";
       throw std::invalid_argument("Unable to read mask file " + line);
     }
-    validate_sorted();
   } else {
     chromosome = "";
   }
-}
-
-void Mask_Reader::validate_sorted() {
-  if (start > end) {
-    throw std::invalid_argument("Mask file has start > end for " + 
-                                chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
-  }
-
-
-  if (chromosome == prev_chromosome) {
-    if (start < prev_start) {
-      throw std::invalid_argument("Mask file not sorted. " + 
-                                  prev_chromosome + ":" + std::to_string(prev_start)+"-"+std::to_string(prev_end) +
-                                  " comes before " +
-                                  chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
-    }
-  } 
-  else {
-    if (chromosome_order.find(chromosome) != chromosome_order.end()) {
-      throw std::invalid_argument("Mask file not sorted. Chromosome " + chromosome +
-                                  " appears multiple times out of order.");
-    }
-    chromosome_order.insert(chromosome);
-    prev_chromosome = chromosome;
-  }
-
-  prev_start = start;
-  prev_end = end;
 }
