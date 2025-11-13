@@ -1,0 +1,50 @@
+name: TimingTests
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  timing_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '3.16.x'
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget ca-certificates
+
+      - name: Configure CMake
+        run: |
+          cmake -B ${{github.workspace}}/build
+          cmake --version
+
+      - name: Build
+        run: |
+          cmake --build ${{github.workspace}}/build
+
+      - name: Prepare Data
+        run: |
+          # Download genotype data
+          wget -q https://zenodo.org/records/15127123/files/cell_data_outputs_genotype_altai_1kg_20.gz
+          gunzip cell_data_outputs_genotype_altai_1kg_20.gz
+
+          # Download mask
+          wget -q https://zenodo.org/records/15127123/files/cell_data_masks_chr20.bed
+
+          # Download the sample
+          wget -q https://zenodo.org/records/15127123/files/cell_data_samples_ACB.txt
+
+      - name: Run IBDmix ACB Timing Test
+        working-directory: ${{github.workspace}}
+        run: |
+          /usr/bin/time -v ./build/src/ibdmix \
+            --genotype cell_data_outputs_genotype_altai_1kg_20 \
+            --mask cell_data_masks_chr20.bed \
+            --sample cell_data_samples_ACB.txt \
+            --output ibdmix_acb_timing_output.txt
