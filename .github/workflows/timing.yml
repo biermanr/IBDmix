@@ -31,14 +31,14 @@ jobs:
       - name: Prepare Data
         run: |
           # Download genotype data
-          wget https://zenodo.org/records/15127123/files/cell_data_outputs_genotype_altai_1kg_20.gz
+          wget -q https://zenodo.org/records/15127123/files/cell_data_outputs_genotype_altai_1kg_20.gz
           gunzip cell_data_outputs_genotype_altai_1kg_20.gz
 
           # Download mask
-          wget https://zenodo.org/records/15127123/files/cell_data_masks_chr20.bed
+          wget -q https://zenodo.org/records/15127123/files/cell_data_masks_chr20.bed
 
           # Download the sample
-          wget https://zenodo.org/records/15127123/files/cell_data_samples_ACB.txt
+          wget -q https://zenodo.org/records/15127123/files/cell_data_samples_ACB.txt
 
       - name: Run IBDmix ACB Timing Test
         working-directory: ${{github.workspace}}
