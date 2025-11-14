@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsample_mapper.a CMakeFiles/sample_mapper.dir/Sample_Mapper.cc.o
+/usr/bin/ranlib libsample_mapper.a

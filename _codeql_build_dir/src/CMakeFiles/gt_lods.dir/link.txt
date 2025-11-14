@@ -1,0 +1,1 @@
+/home/runner/work/IBDmix/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -Wl,--dependency-file=CMakeFiles/gt_lods.dir/link.d CMakeFiles/gt_lods.dir/tabulate_lods.cc.o -o gt_lods  libgenotype_reader.a libmask_reader.a libsample_mapper.a liblod_calculator.a

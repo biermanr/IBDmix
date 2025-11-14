@@ -1,0 +1,1 @@
+/home/runner/work/IBDmix/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -Wl,--dependency-file=CMakeFiles/generate_gt.dir/link.d CMakeFiles/generate_gt.dir/generate_gt.cc.o -o generate_gt  libvcf_file.a

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmask_reader.a CMakeFiles/mask_reader.dir/Mask_Reader.cc.o
+/usr/bin/ranlib libmask_reader.a

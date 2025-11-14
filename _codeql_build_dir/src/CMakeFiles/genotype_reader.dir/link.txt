@@ -1,0 +1,2 @@
+/usr/bin/ar qc libgenotype_reader.a CMakeFiles/genotype_reader.dir/Genotype_Reader.cc.o
+/usr/bin/ranlib libgenotype_reader.a

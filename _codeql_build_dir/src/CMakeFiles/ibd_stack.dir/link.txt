@@ -1,0 +1,2 @@
+/usr/bin/ar qc libibd_stack.a CMakeFiles/ibd_stack.dir/IBD_Stack.cc.o
+/usr/bin/ranlib libibd_stack.a

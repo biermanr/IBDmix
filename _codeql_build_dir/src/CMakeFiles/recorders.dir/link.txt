@@ -1,0 +1,2 @@
+/usr/bin/ar qc librecorders.a CMakeFiles/recorders.dir/Segment_Recorders.cc.o
+/usr/bin/ranlib librecorders.a
