@@ -6,11 +6,13 @@ void Mask_Reader::scan_pass() {
   // Check if the stream is seekable by trying to get current position
   std::streampos initial_pos = mask->tellg();
   if (initial_pos == std::streampos(-1)) {
-    throw std::invalid_argument(
-        "Mask file stream is not seekable (e.g., from process substitution like <(wget ...)). "
-        "Input validation requires a seekable file. Either:\n"
-        "  1. Save the mask to a regular file first, or\n"
-        "  2. Use --no-check-inputs to disable validation (not recommended).");
+    // Stream is not seekable (e.g., from process substitution)
+    // Fall back to single-pass mode with a warning
+    std::cerr << "Warning: Mask file stream is not seekable (e.g., from process substitution like <(wget ...)).\n"
+              << "Input validation will be skipped. Using single-pass mode.\n"
+              << "To enable validation, save the mask to a regular file first.\n";
+    readline();
+    return;
   }
   
   readline();
