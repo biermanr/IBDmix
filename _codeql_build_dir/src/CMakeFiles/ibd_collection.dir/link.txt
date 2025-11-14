@@ -1,2 +1,0 @@
-/usr/bin/ar qc libibd_collection.a CMakeFiles/ibd_collection.dir/IBD_Collection.cc.o
-/usr/bin/ranlib libibd_collection.a

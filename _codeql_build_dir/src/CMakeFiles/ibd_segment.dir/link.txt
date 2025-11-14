@@ -1,2 +1,0 @@
-/usr/bin/ar qc libibd_segment.a CMakeFiles/ibd_segment.dir/IBD_Segment.cc.o
-/usr/bin/ranlib libibd_segment.a

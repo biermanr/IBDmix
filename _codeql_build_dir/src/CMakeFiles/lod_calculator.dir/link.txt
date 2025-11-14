@@ -1,2 +1,0 @@
-/usr/bin/ar qc liblod_calculator.a CMakeFiles/lod_calculator.dir/lod_calculator.cc.o
-/usr/bin/ranlib liblod_calculator.a

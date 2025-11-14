@@ -1,1 +1,0 @@
-/home/runner/work/IBDmix/.codeql-scratch/dbs/cpp/working/autobuild/bin/c++ -O3 -Wl,--dependency-file=CMakeFiles/ibdmix.dir/link.d CMakeFiles/ibdmix.dir/main.cc.o -o ibdmix  libibd_collection.a libgenotype_reader.a libibd_stack.a libibd_segment.a librecorders.a libgenotype_reader.a libmask_reader.a libsample_mapper.a liblod_calculator.a libibd_stack.a

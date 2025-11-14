@@ -1,2 +1,0 @@
-/usr/bin/ar qc libvcf_file.a CMakeFiles/vcf_file.dir/vcf_file.cc.o
-/usr/bin/ranlib libvcf_file.a
