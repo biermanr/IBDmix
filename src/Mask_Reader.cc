@@ -2,6 +2,17 @@
 
 void Mask_Reader::scan_pass() {
   if (mask == nullptr) return;
+  
+  // Check if the stream is seekable by trying to get current position
+  std::streampos initial_pos = mask->tellg();
+  if (initial_pos == std::streampos(-1)) {
+    throw std::invalid_argument(
+        "Mask file stream is not seekable (e.g., from process substitution like <(wget ...)). "
+        "Input validation requires a seekable file. Either:\n"
+        "  1. Save the mask to a regular file first, or\n"
+        "  2. Use --no-check-inputs to disable validation (not recommended).");
+  }
+  
   readline();
 
   while (chromosome != "") {

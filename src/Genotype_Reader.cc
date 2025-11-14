@@ -33,21 +33,23 @@ bool Genotype_Reader::update() {
   // return false if the file is read fully
   if (!(iss >> chromosome && iss >> position)) return false;
 
-  // check position and chromosome order
-  if (chromosome == prev_chromosome) {
-    if (position < prev_position) {
-      throw std::invalid_argument("Genotype file not sorted. " +
-                                  prev_chromosome + ":" +
-                                  std::to_string(prev_position) +
-                                  " comes before " + chromosome + ":" +
-                                  std::to_string(position));
+  // check position and chromosome order (only if check_inputs is enabled)
+  if (check_inputs) {
+    if (chromosome == prev_chromosome) {
+      if (position < prev_position) {
+        throw std::invalid_argument("Genotype file not sorted. " +
+                                    prev_chromosome + ":" +
+                                    std::to_string(prev_position) +
+                                    " comes before " + chromosome + ":" +
+                                    std::to_string(position));
+      }
+    } else {
+      if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) != chromosome_order.end()) {
+        throw std::invalid_argument("Genotype file not sorted. Chromosome " +
+                                    chromosome + " appears multiple times out of order.");
+      }
+      chromosome_order.push_back(chromosome);
     }
-  } else {
-    if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) != chromosome_order.end()) {
-      throw std::invalid_argument("Genotype file not sorted. Chromosome " +
-                                  chromosome + " appears multiple times out of order.");
-    }
-    chromosome_order.push_back(chromosome);
   }
   prev_chromosome = chromosome;
   prev_position = position;

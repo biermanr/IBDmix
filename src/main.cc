@@ -66,6 +66,11 @@ int main(int argc, char *argv[]) {
                "Also include LOD scores of positive LOD as a CSV list. "
                "Same order as SNPs.");
 
+  bool check_inputs = true;
+  app.add_flag("--check-inputs,!--no-check-inputs", check_inputs,
+               "Validate input file ordering and chromosome naming consistency (default: on). "
+               "Disable with --no-check-inputs to skip validation for performance.");
+
   CLI11_PARSE(app, argc, argv);
 
   std::ifstream genotype;
@@ -96,7 +101,7 @@ int main(int argc, char *argv[]) {
   Genotype_Reader reader(&genotype, &mask, archaic_error, modern_error_max,
                          modern_error_prop,
                          1e-200,  // minesp
-                         ma_threshold);
+                         ma_threshold, check_inputs);
 
   int num_samples = reader.initialize(sample, archaic);
   if (sample.is_open()) sample.close();
@@ -113,10 +118,12 @@ int main(int argc, char *argv[]) {
 
   while (reader.update()) ibds.update(reader, output);
 
-  // TODO should these checks be in Genotype_Reader instead of main?
-  reader.mask_genotype_chr_prefix_naming_consistent();
-  reader.compare_mask_chromosome_ordering();
-  reader.report_summary_mask_statistics();
+  // Only run validation checks if check_inputs is enabled
+  if (check_inputs) {
+    reader.mask_genotype_chr_prefix_naming_consistent();
+    reader.compare_mask_chromosome_ordering();
+    reader.report_summary_mask_statistics();
+  }
 
   ibds.purge(output);
 
