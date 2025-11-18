@@ -171,7 +171,7 @@ elif [[ $test_type == "all_no_mask" ]]; then
 
     cmp \
         <(read_result "$resultfile") \
-        <(run_ibd_all_no_mask $genotype)
+        <(run_ibd_all_no_mask $genotype_file)
 
 elif [[ $test_type == "extra" ]]; then
 
