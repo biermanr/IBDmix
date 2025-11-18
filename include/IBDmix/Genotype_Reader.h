@@ -19,13 +19,12 @@ class Genotype_Reader {
   Genotype_Reader(std::istream *genotype, std::istream *mask = nullptr,
                   double archaic_error = 0.01, double modern_error_max = 0.002,
                   double modern_error_proportion = 2, double minesp = 1e-200,
-                  int minor_allele_cutoff = 1, bool check_inputs = true)
+                  int minor_allele_cutoff = 1)
       : genotype(genotype),
-        mask(mask, check_inputs),
+        mask(mask),
         calculator(archaic_error, modern_error_max, modern_error_proportion,
                    minesp),
-        minor_allele_cutoff(minor_allele_cutoff),
-        check_inputs(check_inputs) {}
+        minor_allele_cutoff(minor_allele_cutoff){}
 
   int initialize(std::istream &samples, std::string archaic = "");
   bool update(void);
@@ -64,7 +63,6 @@ class Genotype_Reader {
   std::vector<double> lod_scores;
 
   int minor_allele_cutoff;
-  bool check_inputs;
   unsigned char line_filtering;
   char archaic;
   char alt;

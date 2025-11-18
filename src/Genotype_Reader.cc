@@ -33,24 +33,23 @@ bool Genotype_Reader::update() {
   // return false if the file is read fully
   if (!(iss >> chromosome && iss >> position)) return false;
 
-  // check position and chromosome order (only if check_inputs is enabled)
-  if (check_inputs) {
-    if (chromosome == prev_chromosome) {
-      if (position < prev_position) {
-        throw std::invalid_argument("Genotype file not sorted. " +
-                                    prev_chromosome + ":" +
-                                    std::to_string(prev_position) +
-                                    " comes before " + chromosome + ":" +
-                                    std::to_string(position));
-      }
-    } else {
-      if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) != chromosome_order.end()) {
-        throw std::invalid_argument("Genotype file not sorted. Chromosome " +
-                                    chromosome + " appears multiple times out of order.");
-      }
-      chromosome_order.push_back(chromosome);
+  // check position and chromosome order consistency within genotype file (probably unecessary)
+  if (chromosome == prev_chromosome) {
+    if (position < prev_position) {
+      throw std::invalid_argument("-- IBDmix Error: Genotype file not sorted. " +
+                                  prev_chromosome + ":" +
+                                  std::to_string(prev_position) +
+                                  " comes before " + chromosome + ":" +
+                                  std::to_string(position));
     }
+  } else {
+    if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) != chromosome_order.end()) {
+      throw std::invalid_argument("-- IBDmix Error: Genotype file not sorted. Chromosome " +
+                                  chromosome + " appears multiple times out of order.");
+    }
+    chromosome_order.push_back(chromosome);
   }
+
   prev_chromosome = chromosome;
   prev_position = position;
 
@@ -144,8 +143,8 @@ bool Genotype_Reader::mask_genotype_chr_prefix_naming_consistent() {
   for(const auto &c : chromosome_order) {
     for(const auto &mc : mask.getChromosomeOrder()) {
       if(c == "chr" + mc || "chr" + c == mc) {
-        std::cerr << "Warning: Chromosome naming difference detected between genotype and mask files: "
-                  << c << " vs " << mc << ". This may lead to incorrect masking.\n";
+        std::cerr << "-- IBDmix Warning: Chromosome naming difference detected between genotype and mask files: "
+                  << c << " vs " << mc << ". This may lead to incorrect masking.\n" << "--\n";
         return false;
       }
     }
@@ -180,9 +179,10 @@ bool Genotype_Reader::compare_mask_chromosome_ordering() {
       });
 
     throw std::invalid_argument(
-        std::string("Mask chromosome ordering does not match Genotype chromosome ordering. This can lead to incorrect masking.") +
-        std::string("\n- Genotype chromosome order: ") + genotype_chroms +
-        std::string("\n- Mask chromosome order: ") + mask_chroms);
+        std::string("-- IBDmix Warning: Mask chromosome ordering does not match Genotype chromosome ordering. This can lead to incorrect masking.\n") +
+        std::string("--                 Genotype chromosome order: ") + genotype_chroms + "\n" +
+        std::string("--                 Mask chromosome order: ") + mask_chroms + "\n" +
+        std::string("--\n"));
   }
 
   return true;
@@ -191,9 +191,10 @@ bool Genotype_Reader::compare_mask_chromosome_ordering() {
 
 void Genotype_Reader::report_summary_mask_statistics() {
   // Report summary statistics about masking per chromosome
-  std::cerr << "Masking summary statistics per chromosome:\n";
+  std::cerr << "-- IBDmix Info: Masking summary statistics per chromosome:\n";
   for(const auto &c : chromosome_order) {
     int nmasked = nloci_masked_per_chromosome[c];
-    std::cerr << "  Chromosome " << c << ": " << nmasked << " loci masked.\n";
+    std::cerr << "--  Chromosome " << c << ": " << nmasked << " loci masked.\n";
   }
+  std::cerr << "--\n";
 }
