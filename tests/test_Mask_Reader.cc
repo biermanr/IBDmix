@@ -129,3 +129,15 @@ TEST(MaskReader, DisorderedRepeatedChromosomeThrows) {
   // Creating the mask triggers a scan pass that should throw on disordered repeated chromosomes
   ASSERT_THROW(Mask_Reader mask(&mask_input), std::invalid_argument);
 }
+
+TEST(MaskReader, NoCheckInputsSkipsValidation) {
+  std::istringstream mask_input(
+      "1 130 140\n"
+      "1 260 281\n"
+      "2 130 140\n"
+      "1 380 390\n"  // This would normally throw, but check_inputs=false skips validation
+  );
+
+  // With check_inputs=false, validation should be skipped
+  ASSERT_NO_THROW(Mask_Reader mask(&mask_input, false));
+}

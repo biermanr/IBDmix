@@ -10,7 +10,15 @@
 
 class Mask_Reader {
  public:
-  explicit Mask_Reader(std::istream *mask) : mask(mask) { scan_pass(); }
+  explicit Mask_Reader(std::istream *mask, bool check_inputs = true) 
+      : mask(mask), check_inputs(check_inputs) { 
+    if (check_inputs) {
+      scan_pass(); 
+    } else {
+      // Still need to read first line for single-pass mode
+      readline();
+    }
+  }
   bool in_mask(const std::string &chrom, uint64_t position);
   const std::vector<std::string> &getChromosomeOrder() const { return chromosome_order; }
 
@@ -22,6 +30,7 @@ class Mask_Reader {
   uint64_t prev_start = 0;
   uint64_t prev_end = 0;
   std::istream *mask = nullptr;
+  bool check_inputs = true;
   void scan_pass();
   void readline();
 };

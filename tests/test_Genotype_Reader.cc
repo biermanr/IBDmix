@@ -470,6 +470,21 @@ TEST(GenotypeReader, DisorderedRepeatedChromosomesInGenotypeThrows) {
   EXPECT_THROW(reader.update(), std::invalid_argument); // back to chr 1 not ok
 }
 
+TEST(GenotypeReader, NoCheckInputsSkipsValidation) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+      "2\t3\tA\tT\t2\t0\t0\t0\t0\n"
+      "1\t4\tA\tT\t1\t0\t1\t1\t1\n");  // This would normally throw
+  Genotype_Reader reader(&genotype, nullptr, 0.01, 0.002, 2, 1e-200, 1, false); // check_inputs=false
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  ASSERT_TRUE(reader.update()); // first chr 1 ok
+  ASSERT_TRUE(reader.update()); // chr 2 ok
+  ASSERT_NO_THROW(reader.update()); // back to chr 1, but no validation with check_inputs=false
+}
+
 
 TEST(GenotypeReader, ChromosomeDisorderBetweenGenotypeAndMaskThrows) {
   std::istringstream genotype(
