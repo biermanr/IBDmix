@@ -15,8 +15,6 @@ class Mask_Reader {
   const std::vector<std::string> &getChromosomeOrder() const { return chromosome_order; }
 
  private:
-  void check_state();
-  bool chrom_seen(const std::string &chrom);
   std::string chromosome = "";
   std::string prev_chromosome = "";
   std::vector<std::string> chromosome_order;
@@ -24,6 +22,8 @@ class Mask_Reader {
   uint64_t prev_start = 0;
   uint64_t prev_end = 0;
   std::istream *mask = nullptr;
+  bool readline();
   void scan_pass();
-  void readline();
+  void check_start_end_ordering();
+  bool chrom_seen(const std::string &chrom);
 };
