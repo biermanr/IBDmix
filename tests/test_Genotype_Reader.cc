@@ -445,8 +445,7 @@ TEST(GenotypeReader, DisorderedPositionInGenotypeThrows) {
   std::istringstream genotype(
       "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
       "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
-      "1\t1\tA\tT\t1\t0\t1\t1\t1\n"
-      "2\t3\tA\tT\t2\t0\t0\t0\t0\n");
+      "1\t1\tA\tT\t1\t0\t1\t1\t1\n");
   Genotype_Reader reader(&genotype);
   std::istream sample_dummy(nullptr);
   reader.initialize(sample_dummy);

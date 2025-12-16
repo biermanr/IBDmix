@@ -11,7 +11,7 @@ void Mask_Reader::scan_pass() {
     // Stream is not seekable (e.g., from process substitution like <(wget ...))
     // Fall back to single-pass mode with a warning
     std::cerr << "-- IBDmix Warning: Mask file stream is not seekable (e.g., from process substitution like <(wget ...)).\n"
-              << "--                 Input validation will be skipped. To enable validation, save the mask to a regular file first.\n"
+              << "--                 Mask input validation will be skipped. To enable validation, save the mask to a regular file first.\n"
               << "--\n";
     readline();
     return;
@@ -21,27 +21,12 @@ void Mask_Reader::scan_pass() {
 
   while (chromosome != "") {
 
-    if (start > end) {
-      throw std::invalid_argument("-- IBDmix Error: Mask file has start > end for " + 
-                                  chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
-    }
-    
-    if (chromosome == prev_chromosome) {
-      if (start < prev_start) {
-        throw std::invalid_argument("-- IBDmix Error: Mask file not sorted. " + 
-                                    prev_chromosome + ":" + std::to_string(prev_start)+"-"+std::to_string(prev_end) +
-                                    " comes before " +
-                                    chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
-      }
-    }
-
-    if(chromosome != prev_chromosome){
-      if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) == chromosome_order.end()) {
-        chromosome_order.push_back(chromosome);
-      } else {
-        throw std::invalid_argument("-- IBDmix Error: Mask file not sorted. Chromosome " + chromosome +
-                                    " appears multiple times out of order.");
-      }
+    check_state(); 
+    // NOTE most of the validation checks CAN and SHOULD happen on the streaming readline() calls in in_mask().
+    // The only thing we need from this scan pass is to build chromosome_order and validate sorting. We
+    // don't want to duplicate all the checks here and in in_mask().
+    if (chromosome != prev_chromosome) {
+      chromosome_order.push_back(chromosome);
     }
 
     prev_chromosome = chromosome;
@@ -59,29 +44,23 @@ void Mask_Reader::scan_pass() {
 }
 
 
-// Check if a position is in the mask
-// - chrom: chromosome name from the genotype file that we're checking
-// - position: position from the genotype file that we're checking
-//
-// Internal state:
-// - chromosome: current chromosome in the mask file
-// - start, end: current start and end positions in the mask file
-bool Mask_Reader::in_mask(const std::string &chrom, uint64_t position) {
+bool Mask_Reader::in_mask(const std::string &geno_chrom, uint64_t geno_position) {
   if (mask == nullptr) return false;
 
   for (;;) {
     if (chromosome == "") {
       return false;
-    } else if (chrom == chromosome) {
-      if (position <= start)
+    } else if (geno_chrom == chromosome) {
+      if (geno_position <= start)
         return false;
-      else if (end < position)
+      else if (end < geno_position)
         readline();
       else
         return true;  // start < position <= end
     } else {
       // If the chrom is not known to be in the mask, return false and do not advance the mask
-      if (find(chromosome_order.begin(), chromosome_order.end(), chrom) == chromosome_order.end()) {
+      // How does this work with non-seekable masks?
+      if (!chrom_seen(geno_chrom)) {
         return false;
       }
       readline();
@@ -91,14 +70,44 @@ bool Mask_Reader::in_mask(const std::string &chrom, uint64_t position) {
 
 void Mask_Reader::readline() {
   if (mask == nullptr) return;
+
   std::string line;
-  if (std::getline(*mask, line)) {
-    std::istringstream iss(line);
-    if (!(iss >> chromosome >> start >> end)) {
-      chromosome = "";
-      throw std::invalid_argument("Unable to read mask file " + line);
-    }
-  } else {
+  if(!std::getline(*mask, line)) {
     chromosome = "";
+    return;
   }
+
+  std::istringstream iss(line);
+  if (!(iss >> chromosome >> start >> end)) {
+    chromosome = "";
+    throw std::invalid_argument("Unable to parse line mask file " + line);
+  }
+}
+
+
+
+// Check the current state of the mask reader, raising exceptions for invalid conditions:
+void Mask_Reader::check_state() {
+
+  if (start > end) {
+    throw std::invalid_argument("-- IBDmix Error: Mask file has start > end for " + 
+                                chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
+  }
+  
+  if ((chromosome == prev_chromosome) && (start < prev_start)) {
+    throw std::invalid_argument("-- IBDmix Error: Mask file not sorted. " + 
+                                prev_chromosome + ":" + std::to_string(prev_start)+"-"+std::to_string(prev_end) +
+                                " comes before " +
+                                chromosome + ":" + std::to_string(start)+"-"+std::to_string(end));
+  }
+
+  if ((chromosome != prev_chromosome) && (chrom_seen(chromosome))) {
+      throw std::invalid_argument("-- IBDmix Error: Mask file not sorted. Chromosome " + chromosome +
+                                  " appears multiple times out of order.");
+    }
+}
+
+bool Mask_Reader::chrom_seen(const std::string &chrom) {
+  // NOTE: This could be optimized with a set if needed
+  return std::find(chromosome_order.begin(), chromosome_order.end(), chrom) != chromosome_order.end();
 }

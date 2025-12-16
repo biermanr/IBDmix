@@ -114,9 +114,15 @@ int main(int argc, char *argv[]) {
   // Main processing loop
   while (reader.update()) ibds.update(reader, output);
 
-  // Post-processing and reporting
-  reader.mask_genotype_chr_prefix_naming_consistent();
+  // If the chrom order in the mask does not match that in the genotype, raise an error
+  // TODO: Should this be checked in the main processing loop instead so we can fail faster?
+  // TODO: Need to delete the output file since we have already written to it 
   reader.compare_mask_chromosome_ordering();
+
+  // Report warnings about chromosome naming differences if any, e.g., chr1 vs 1
+  reader.mask_genotype_chr_prefix_naming_consistent();
+
+  // Report summary statistics about the mask usage
   reader.report_summary_mask_statistics();
 
   ibds.purge(output);

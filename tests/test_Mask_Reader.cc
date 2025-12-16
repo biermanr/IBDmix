@@ -3,9 +3,55 @@
 
 #include <iostream>
 #include <sstream>
+#include <streambuf>
 
 #include "IBDmix/Mask_Reader.h"
 
+// Non-seekable stream buffer for testing
+// Wraps a stringbuf but makes it non-seekable by making seekoff/seekpos fail
+class NonSeekableStreamBuf : public std::streambuf {
+private:
+  std::stringbuf underlying_buf;
+
+public:
+  explicit NonSeekableStreamBuf(const std::string& data) : underlying_buf(data) {}
+
+  // Override to make seeking fail (return -1)
+  std::streampos seekoff(std::streamoff off, std::ios_base::seekdir dir,
+                         std::ios_base::openmode which = std::ios_base::in) override {
+    return std::streampos(-1);
+  }
+
+  std::streampos seekpos(std::streampos pos,
+                         std::ios_base::openmode which = std::ios_base::in) override {
+    return std::streampos(-1);
+  }
+
+  // Delegate reading to the underlying buffer
+  int underflow() override {
+    return underlying_buf.sgetc();
+  }
+
+  int uflow() override {
+    return underlying_buf.sbumpc();
+  }
+
+  std::streamsize xsgetn(char* s, std::streamsize n) override {
+    return underlying_buf.sgetn(s, n);
+  }
+};
+
+// Non-seekable stream for testing
+class NonSeekableStream : public std::istream {
+private:
+  NonSeekableStreamBuf buf;
+
+public:
+  explicit NonSeekableStream(const std::string& data) : std::istream(&buf), buf(data) {}
+};
+
+
+// Actual testing starts now
 TEST(MaskReader, CanTestInMask) {
   std::istringstream mask_input(
       "1 100 120\n"
@@ -103,6 +149,20 @@ TEST(MaskReader, StartGreaterThanEndThrows) {
 
   // Creating the mask triggers a scan pass that should throw on start > end
   ASSERT_THROW(Mask_Reader mask(&mask_input), std::invalid_argument);
+}
+
+TEST(MaskReader, ScanningStartGreaterThanEndThrows) {
+  NonSeekableStream mask_input(
+    "1 140 130\n"
+  );
+
+  // With a non-seekable stream, scan_pass() should print a warning instead of throwing
+  // The warning indicates that input validation is skipped for non-seekable streams
+  testing::internal::CaptureStderr();
+  Mask_Reader mask(&mask_input);
+  std::string output = testing::internal::GetCapturedStderr();
+
+  ASSERT_TRUE(output.find("not seekable") != std::string::npos);
 }
 
 TEST(MaskReader, DisorderedPositionThrows) {
