@@ -22,7 +22,6 @@ class Mask_Reader {
   uint64_t prev_start = 0;
   uint64_t prev_end = 0;
   std::istream *mask = nullptr;
-  bool check_inputs = true;
   void scan_pass();
   void readline();
 };

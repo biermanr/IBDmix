@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -eo pipefail
 
 test_type=$1
 
@@ -143,13 +143,13 @@ elif [[ $test_type == "populations" ]]; then
         sample="$url_base/cell_data_samples_${pop}.txt"
 
         # Test with streaming of mask file
-        echo "Running ${pop} with stream mask"
+        echo "Running ${pop} with 'streaming' mask"
         cmp \
             <(read_result "$resultfile") \
             <(run_ibd_pop_stream $genotype_file $sample $mask_file)
 
         # Test with mask file
-        echo "Running ${pop} with mask file"
+        echo "Running ${pop} with local 'seekable' mask file"
         cmp \
             <(read_result "$resultfile") \
             <(run_ibd_pop $genotype_file $sample $mask_file)

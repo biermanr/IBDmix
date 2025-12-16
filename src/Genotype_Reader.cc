@@ -139,6 +139,7 @@ const std::vector<std::string> &Genotype_Reader::get_samples() const {
   return sample_mapper.getSamples();
 }
 
+// Check for naming differences between genotype and mask files after processing
 bool Genotype_Reader::mask_genotype_chr_prefix_naming_consistent() {
   for(const auto &c : chromosome_order) {
     for(const auto &mc : mask.getChromosomeOrder()) {

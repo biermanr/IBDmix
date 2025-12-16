@@ -1,5 +1,7 @@
 #include "IBDmix/Mask_Reader.h"
 
+// Initial scan of the mask file to validate sorting and store chromosome order.
+// Only performed if the input stream is seekable so that we can reset to the beginning after this 1st pass.
 void Mask_Reader::scan_pass() {
   if (mask == nullptr) return;
   
@@ -56,6 +58,14 @@ void Mask_Reader::scan_pass() {
   readline();
 }
 
+
+// Check if a position is in the mask
+// - chrom: chromosome name from the genotype file that we're checking
+// - position: position from the genotype file that we're checking
+//
+// Internal state:
+// - chromosome: current chromosome in the mask file
+// - start, end: current start and end positions in the mask file
 bool Mask_Reader::in_mask(const std::string &chrom, uint64_t position) {
   if (mask == nullptr) return false;
 

@@ -111,8 +111,10 @@ int main(int argc, char *argv[]) {
   ibds.writeHeader(output);
   output << '\n';
 
+  // Main processing loop
   while (reader.update()) ibds.update(reader, output);
 
+  // Post-processing and reporting
   reader.mask_genotype_chr_prefix_naming_consistent();
   reader.compare_mask_chromosome_ordering();
   reader.report_summary_mask_statistics();

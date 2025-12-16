@@ -230,3 +230,19 @@ cores, more jobs can be run simultaneously.
 
 ## License
 GNU GPLv3
+
+## Contributor and developer notes
+
+IBDmix welcomes contributions in the form of github issues or pull requests!
+
+To get a local development environment and run unit tests:
+* git clone https://github.com/PrincetonUniversity/IBDmix.git
+* cd IBDmix
+* ./scripts/unittests.sh
+
+The unit tests should complete in around a minute or less.
+
+There are also more extensive acceptance tests which can take 20+ minutes to run.
+There are actually multiple acceptance test categories such as `gen_20`, `populations`,
+`all_mask`, `all_no_mask`, and `extra`. These can be launched individually with for example
+* ./scripts/acceptance_test.sh gen_20
