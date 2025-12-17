@@ -51,7 +51,7 @@ public:
 };
 
 
-// Actual testing starts now
+
 TEST(MaskReader, CanTestInMask) {
   std::istringstream mask_input(
       "1 100 120\n"
@@ -120,32 +120,102 @@ TEST(MaskReader, CanTestInMask) {
 
 TEST(MaskReader, StandardChromosomeOrdered) {
   std::istringstream mask_input(
-      "1 380 390\n"
-      "1 400 410\n"
-      "2 130 140\n"
-      "2 150 160\n"
+    "1 20 30\n"
+    "1 40 50\n"
+    "2 140 150\n"
+    "4 240 250\n"
+    "5 260 270\n"
   );
 
+  // Creating the mask does a scan pass so all chroms are known
   Mask_Reader mask(&mask_input);
-  std::cout << "Chromosome order: ";
-  for (const auto& chrom : mask.getChromosomeOrder()) {
-    std::cout << chrom << " ";
-  }
-  std::cout << std::endl;
-  ASSERT_TRUE(true);
-  //ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1", "2"}));
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1", "2", "4", "5"}));
+
+  ASSERT_TRUE(mask.in_mask("1", 25));
+  ASSERT_TRUE(mask.in_mask("1", 45));
+  ASSERT_TRUE(mask.in_mask("2", 145));
+
+  // chrom missing, but chrom order known after scan so the mask should NOT advance
+  ASSERT_FALSE(mask.in_mask("3", 100));
+
+  ASSERT_TRUE(mask.in_mask("4", 245));
+  ASSERT_TRUE(mask.in_mask("5", 265));
 }
 
-TEST(MaskReader, CustomChromosomeOrdered) {
-  std::istringstream mask_input(
-      "2 130 140\n"
-      "2 150 160\n"
-      "1 380 390\n"
-      "1 400 410\n"
+TEST(MaskReader, NonSeekableChromosomeOrdered) {
+  NonSeekableStream mask_input(
+    "1 20 30\n"
+    "1 40 50\n"
+    "2 140 150\n"
+    "4 240 250\n"
+    "5 260 270\n"
   );
 
   Mask_Reader mask(&mask_input);
-  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"2", "1"}));
+
+  // No scan, but first line read so chrom 1 known
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1"}));
+
+  mask.in_mask("1", 45); // forces read second line of chrom 1, so still only chrom 1 known
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1"}));
+
+  mask.in_mask("2", 145); // forces read chrom 2, so now chrom 2 known
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1", "2"}));
+
+  // checking chr3 forces read of the chr4 line, but then stops since 4 > 3 (assuming sorted)
+  ASSERT_FALSE(mask.in_mask("3", 100));
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"1", "2", "4"}));
+
+  ASSERT_TRUE(mask.in_mask("4", 245)); 
+  ASSERT_TRUE(mask.in_mask("5", 265)); 
+}
+
+TEST(MaskReader, DifficultChromosomeOrdered) {
+  // Difficult situation where numerically 8 < 10 but lexically "8" > "10" 
+  std::istringstream mask_input(
+      "8 130 140\n"
+      "8 150 160\n"
+      "10 380 390\n"
+      "10 400 410\n"
+  );
+
+  Mask_Reader mask(&mask_input);
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"8", "10"}));
+
+  ASSERT_FALSE(mask.in_mask("7", 100));
+  ASSERT_TRUE(mask.in_mask("8", 135));
+  ASSERT_TRUE(mask.in_mask("8", 155));
+  ASSERT_FALSE(mask.in_mask("9", 200));
+  ASSERT_TRUE(mask.in_mask("10", 385));
+  ASSERT_TRUE(mask.in_mask("10", 405));
+}
+
+TEST(MaskReader, NonSeekableDifficultChromosomeOrdered) {
+  // Difficult situation where numerically 8 < 10 but lexically "8" > "10" 
+  NonSeekableStream mask_input(
+    "8 130 140\n"
+    "8 150 160\n"
+    "10 380 390\n"
+    "10 400 410\n"
+  );
+
+  // Non-seekable stream, so no scan pass, only first line read so only chr8 known
+  Mask_Reader mask(&mask_input);
+  ASSERT_EQ(mask.getChromosomeOrder(), (std::vector<std::string>{"8"}));
+
+  // chr7 < chr8, so should return false without advancing which is correct
+  ASSERT_FALSE(mask.in_mask("7", 100));
+  ASSERT_TRUE(mask.in_mask("8", 135));
+  ASSERT_TRUE(mask.in_mask("8", 155));
+
+  // checking chr9 forces read of chr10 AND continues since chr10 < chr9 lexically
+  ASSERT_FALSE(mask.in_mask("9", 200));
+
+  // this means that these sites which SHOULD be in the mask are already passed.
+  // this isn't the ideal behavior, but it's the best we can do without a scan pass
+  // or storing the mask in memory or in a temp file for re-reading.
+  ASSERT_FALSE(mask.in_mask("10", 385));
+  ASSERT_FALSE(mask.in_mask("10", 405));
 }
 
 TEST(MaskReader, StartGreaterThanEndThrowsFirstLine) {

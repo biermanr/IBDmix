@@ -1,21 +1,24 @@
 #include "IBDmix/Mask_Reader.h"
 
 // Initial scan of the mask file to get the chromosome order.
+// Detects if the stream is seekable and routes to appropriate scanning method.
+void Mask_Reader::detect_seekability_and_scan() {
+  if (mask == nullptr) return;
+
+  std::streampos initial_pos = mask->tellg();
+  is_seekable = (initial_pos != std::streampos(-1));
+
+  if (is_seekable) {
+    perform_full_validation_scan();
+  } else {
+    perform_minimal_scan_with_warning();
+  }
+}
+
+// Seekable stream: perform full validation scan and record chromosome order.
 // Only performed if the input stream is seekable so that we can reset to the beginning after this 1st pass
 // to avoid consuming the mask input.
-void Mask_Reader::scan_pass() {
-  if (mask == nullptr) return;
-  
-  std::streampos initial_pos = mask->tellg();
-  bool seekable = (initial_pos != std::streampos(-1));
-
-  if (!seekable) {
-    // Stream is not seekable (e.g., from process substitution like <(wget ...))
-    std::cerr << "-- IBDmix Warning: Mask file stream is not seekable (e.g., from process substitution like <(wget ...)).\n";
-    readline();
-    return;
-  }
- 
+void Mask_Reader::perform_full_validation_scan() {
   // Seekable stream: perform scan pass and record chromosome order
   while (readline()) {
     if (chromosome == prev_chromosome) continue;
@@ -37,8 +40,18 @@ void Mask_Reader::scan_pass() {
   readline();
 }
 
+// Non-seekable stream: emit warning and read only first line.
+// Full validation will be deferred until runtime during in_mask() calls.
+void Mask_Reader::perform_minimal_scan_with_warning() {
+  // Stream is not seekable (e.g., from process substitution like <(wget ...))
+  std::cerr << "-- IBDmix Warning: Mask file stream is not seekable (e.g., from process substitution like <(wget ...)).\n";
+  readline();
+}
+
 
 bool Mask_Reader::in_mask(const std::string &geno_chrom, uint64_t geno_position) {
+  // test if chrom/position is in mask file
+  // true if position is in (start, end]
   if (mask == nullptr) return false;
 
   for (;;) {
@@ -48,9 +61,10 @@ bool Mask_Reader::in_mask(const std::string &geno_chrom, uint64_t geno_position)
       if (geno_position <= start) return false;
       else if (end < geno_position) readline();
       else return true;  // start < position <= end
-    } else {
-      if (!chrom_seen(geno_chrom)) return false;
-      prev_chromosome = chromosome;
+    } 
+    else {
+      if (is_seekable && !chrom_seen(geno_chrom)) return false;
+      if (!is_seekable && chromosome > geno_chrom) return false; // assuming mask and genotype sorted same way
       readline(); 
     }
   }
@@ -75,6 +89,16 @@ bool Mask_Reader::readline() {
   }
 
   check_start_end_ordering();
+  if(!is_seekable) {
+    if (chromosome != prev_chromosome) {
+      if (chrom_seen(chromosome)) {
+        throw std::invalid_argument("-- IBDmix Error: Mask file not sorted. Chromosome " + chromosome +
+                                    " appears multiple times out of order.");
+      }
+      chromosome_order.push_back(chromosome);
+      prev_chromosome = chromosome;
+    }
+  }
   return true;
 }
 
