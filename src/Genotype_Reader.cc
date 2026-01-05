@@ -9,6 +9,7 @@
 #include <iostream>
 #include <iterator>
 #include <sstream>
+#include <numeric>
 
 int Genotype_Reader::initialize(std::istream &samples, std::string archaic) {
   // using samples list and header line, determine number of samples
@@ -32,6 +33,26 @@ bool Genotype_Reader::update() {
   // return false if the file is read fully
   if (!(iss >> chromosome && iss >> position)) return false;
 
+  // check position and chromosome order consistency within genotype file (probably unecessary)
+  if (chromosome == prev_chromosome) {
+    if (position < prev_position) {
+      throw std::invalid_argument("-- IBDmix Error: Genotype file not sorted. " +
+                                  prev_chromosome + ":" +
+                                  std::to_string(prev_position) +
+                                  " comes before " + chromosome + ":" +
+                                  std::to_string(position));
+    }
+  } else {
+    if(std::find(chromosome_order.begin(), chromosome_order.end(), chromosome) != chromosome_order.end()) {
+      throw std::invalid_argument("-- IBDmix Error: Genotype file not sorted. Chromosome " +
+                                  chromosome + " appears multiple times out of order.");
+    }
+    chromosome_order.push_back(chromosome);
+  }
+
+  prev_chromosome = chromosome;
+  prev_position = position;
+
   iss >> token;  // ref
   ref = token[0];
   iss >> token;  // alt
@@ -43,7 +64,10 @@ bool Genotype_Reader::update() {
   // - fails to meet allele cutoff
   // If selected is false, lod = 0, unless archaic = (0,2) and modern = (2,0)
   bool selected = !mask.in_mask(chromosome, position);
-  if (!selected) line_filtering |= IN_MASK;
+  if (!selected){
+    line_filtering |= IN_MASK;
+    nloci_masked_per_chromosome[chromosome]++;
+  }
 
   // find the 4th tab and erase from buffer
   std::string::size_type ind = buffer.find('\t');
@@ -113,4 +137,65 @@ bool Genotype_Reader::find_frequency() {
 
 const std::vector<std::string> &Genotype_Reader::get_samples() const {
   return sample_mapper.getSamples();
+}
+
+// Check for naming differences between genotype and mask files after processing
+bool Genotype_Reader::mask_genotype_chr_prefix_naming_consistent() {
+  for(const auto &c : chromosome_order) {
+    for(const auto &mc : mask.getChromosomeOrder()) {
+      if(c == "chr" + mc || "chr" + c == mc) {
+        std::cerr << "-- IBDmix Warning: Chromosome naming difference detected between genotype and mask files: "
+                  << c << " vs " << mc << ". This may lead to incorrect masking.\n" << "--\n";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool Genotype_Reader::compare_mask_chromosome_ordering() {
+  std::vector<std::string> mask_chromosome_order = mask.getChromosomeOrder();
+  std::vector<int> genotype_chrom_inds_in_mask;
+  for (const auto &chrom : chromosome_order) {
+    int index = std::find(mask_chromosome_order.begin(), mask_chromosome_order.end(), chrom) - mask_chromosome_order.begin();
+    if (index != mask_chromosome_order.size()) {
+      genotype_chrom_inds_in_mask.push_back(index);
+    }
+  }
+
+  if (!std::is_sorted(genotype_chrom_inds_in_mask.begin(),
+                     genotype_chrom_inds_in_mask.end())) {
+
+    std::string genotype_chroms = std::accumulate(
+      chromosome_order.begin(), chromosome_order.end(), std::string(),
+      [](const std::string &a, const std::string &b) {
+        return a.empty() ? b : a + ", " + b;
+      });
+
+    std::string mask_chroms = std::accumulate(
+      mask_chromosome_order.begin(), mask_chromosome_order.end(),
+      std::string(),
+      [](const std::string &a, const std::string &b) {
+        return a.empty() ? b : a + ", " + b;
+      });
+
+    throw std::invalid_argument(
+        std::string("-- IBDmix Warning: Mask chromosome ordering does not match Genotype chromosome ordering. This can lead to incorrect masking.\n") +
+        std::string("--                 Genotype chromosome order: ") + genotype_chroms + "\n" +
+        std::string("--                 Mask chromosome order: ") + mask_chroms + "\n" +
+        std::string("--\n"));
+  }
+
+  return true;
+}
+
+
+void Genotype_Reader::report_summary_mask_statistics() {
+  // Report summary statistics about masking per chromosome
+  std::cerr << "-- IBDmix Info: Masking summary statistics per chromosome:\n";
+  for(const auto &c : chromosome_order) {
+    int nmasked = nloci_masked_per_chromosome[c];
+    std::cerr << "--  Chromosome " << c << ": " << nmasked << " loci masked.\n";
+  }
+  std::cerr << "--\n";
 }

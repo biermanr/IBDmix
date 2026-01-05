@@ -1,7 +1,14 @@
 *.swp
 *.out
 .*
+!.github
 build/
 debug/
 release/
 exe/
+
+# Downloaded test data
+cell_data_*.bed
+cell_data_*.txt
+cell_data_*.gz
+*.genotype

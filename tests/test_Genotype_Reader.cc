@@ -440,3 +440,172 @@ TEST_F(SampleGenotype, CanCheckLineFilter) {
   // eof
   ASSERT_FALSE(reader.update());
 }
+
+TEST(GenotypeReader, DisorderedPositionInGenotypeThrows) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t1\tA\tT\t1\t0\t1\t1\t1\n");
+  Genotype_Reader reader(&genotype);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  ASSERT_TRUE(reader.update()); // Pos 2 on chr 1 ok
+  EXPECT_THROW(reader.update(), std::invalid_argument); // Pos 1 on chr 1 not ok
+}
+
+TEST(GenotypeReader, DisorderedRepeatedChromosomesInGenotypeThrows) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t2\tA\tT\t1\t0\t0\t0\t0\n"
+      "2\t3\tA\tT\t2\t0\t0\t0\t0\n"
+      "1\t4\tA\tT\t1\t0\t1\t1\t1\n");
+  Genotype_Reader reader(&genotype);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  ASSERT_TRUE(reader.update()); // first chr 1 ok
+  ASSERT_TRUE(reader.update()); // chr 2 ok
+  EXPECT_THROW(reader.update(), std::invalid_argument); // back to chr 1 not ok
+}
+
+TEST(GenotypeReader, ChromosomeDisorderBetweenGenotypeAndMaskThrows) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t135\tA\tT\t1\t0\t0\t0\t0\n"
+      "X\t110\tA\tT\t1\t0\t0\t0\t0\n");
+  std::istringstream mask(
+      "X 100 120\n"
+      "1 130 140\n");
+  Genotype_Reader reader(&genotype, &mask);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  // Initially there are no chromosomes in either file read, so the ordering is the same
+  ASSERT_TRUE(reader.getChromosomeOrder().empty());
+  ASSERT_TRUE(reader.compare_mask_chromosome_ordering());
+
+  // After reading position 1:135 the genotype has {chr1}, and the mask has {chrX, chr1}.
+  // The ordering is still valid as far as we know by this point 
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getChromosomeOrder(), std::vector<std::string>({"1"}));
+  ASSERT_TRUE(reader.compare_mask_chromosome_ordering());
+
+  // After reading position X:110 now the genotype has {chr1, chrX}, while the mask has {chrX, chr1} 
+  // so the ordering is invalid
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getChromosomeOrder(), std::vector<std::string>({"1", "X"}));
+  EXPECT_THROW(reader.compare_mask_chromosome_ordering(), std::invalid_argument);
+}
+
+TEST(GenotypeReader, NLociMaskedPerChromosome) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t125\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t135\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t136\tA\tT\t1\t0\t0\t0\t0\n"
+      "X\t110\tA\tT\t1\t0\t0\t0\t0\n");
+  std::istringstream mask(
+      "1 130 140\n"
+      "X 100 120\n");
+  Genotype_Reader reader(&genotype, &mask);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  // At initialization, no loci have been processed
+  ASSERT_EQ(reader.getNlociMaskedPerChromosome().size(), 0);
+
+  // After reading position 1:125 (not masked) there are still no masked loci
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getNlociMaskedPerChromosome().size(), 0);
+
+  // After reading position 1:135 (masked) there is 1 masked locus on chromosome 1
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getNlociMaskedPerChromosome(), (std::map<std::string, int>{{"1", 1}}));
+
+  // After reading position 1:136 (masked) there are 2 masked loci on chromosome 1
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getNlociMaskedPerChromosome(), (std::map<std::string, int>{{"1", 2}}));
+
+  // After reading position X:110 (masked) there is 1 masked locus on chromosome X
+  ASSERT_TRUE(reader.update());
+  ASSERT_EQ(reader.getNlociMaskedPerChromosome(), (std::map<std::string, int>{{"1", 2}, {"X", 1}}));
+}
+
+TEST(GenotypeReader, ConsistentChrPrefixNamingBetweenGenotypeAndMask) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t125\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t135\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t136\tA\tT\t1\t0\t0\t0\t0\n"
+      "X\t110\tA\tT\t1\t0\t0\t0\t0\n");
+  std::istringstream mask(
+      "1 130 140\n"
+      "X 100 120\n");
+  Genotype_Reader reader(&genotype, &mask);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  // At initialization, both files use consistent chromosome naming (no "chr" prefix)
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // 1:125
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // 1:135
+  ASSERT_TRUE(reader.update()); // 1:136
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // X:110
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+}
+
+TEST(GenotypeReader, MaskHasChrPrefixWhileGenotypeDoesNot) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "1\t125\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t135\tA\tT\t1\t0\t0\t0\t0\n"
+      "1\t136\tA\tT\t1\t0\t0\t0\t0\n"
+      "X\t110\tA\tT\t1\t0\t0\t0\t0\n");
+  std::istringstream mask(
+      "1 130 140\n"
+      "chrX 100 120\n");
+  Genotype_Reader reader(&genotype, &mask);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  // At initialization, both files use consistent chromosome naming (no "chr" prefix)
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // 1:125
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // 1:135
+  ASSERT_TRUE(reader.update()); // 1:136
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  ASSERT_TRUE(reader.update()); // X:110
+  ASSERT_FALSE(reader.mask_genotype_chr_prefix_naming_consistent()); // inconsistent naming detected for X
+}
+
+TEST(GenotypeReader, GenotypeHasChrPrefixWhileMaskDoesNot) {
+  std::istringstream genotype(
+      "chrom\tpos\tref\talt\tn1\tm1\tm2\tm3\tm4\n"
+      "chr1\t125\tA\tT\t1\t0\t0\t0\t0\n"
+      "chr1\t135\tA\tT\t1\t0\t0\t0\t0\n"
+      "chr1\t136\tA\tT\t1\t0\t0\t0\t0\n"
+      "X\t110\tA\tT\t1\t0\t0\t0\t0\n");
+  std::istringstream mask(
+      "1 130 140\n"
+      "X 100 120\n");
+  Genotype_Reader reader(&genotype, &mask);
+  std::istream sample_dummy(nullptr);
+  reader.initialize(sample_dummy);
+
+  // At initialization, both files use consistent chromosome naming (with "chr" prefix in genotype)
+  ASSERT_TRUE(reader.mask_genotype_chr_prefix_naming_consistent());
+
+  // After reading position chr1:125, the chr naming is inconsistent
+  ASSERT_TRUE(reader.update()); // chr1:125
+  ASSERT_FALSE(reader.mask_genotype_chr_prefix_naming_consistent());
+}

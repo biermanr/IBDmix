@@ -2,8 +2,9 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
-#include "IBDmix/Mask_Reader.h"
+#include "IBDmix/Mask.h"
 #include "IBDmix/Sample_Mapper.h"
 #include "IBDmix/lod_calculator.h"
 
@@ -15,18 +16,21 @@ constexpr unsigned char RECOVER_0_2 = 1 << 4;
 
 class Genotype_Reader {
  public:
-  Genotype_Reader(std::istream *genotype, std::istream *mask = nullptr,
+  Genotype_Reader(std::istream *genotype, std::istream *mask_stream = nullptr,
                   double archaic_error = 0.01, double modern_error_max = 0.002,
                   double modern_error_proportion = 2, double minesp = 1e-200,
                   int minor_allele_cutoff = 1)
       : genotype(genotype),
-        mask(mask),
+        mask(mask_stream),
         calculator(archaic_error, modern_error_max, modern_error_proportion,
                    minesp),
-        minor_allele_cutoff(minor_allele_cutoff) {}
+        minor_allele_cutoff(minor_allele_cutoff){}
 
   int initialize(std::istream &samples, std::string archaic = "");
   bool update(void);
+  bool mask_genotype_chr_prefix_naming_consistent();
+  bool compare_mask_chromosome_ordering();
+  void report_summary_mask_statistics();
 
   const std::vector<std::string> &get_samples() const;
   int num_samples() const { return sample_mapper.size(); }
@@ -42,9 +46,11 @@ class Genotype_Reader {
   uint64_t getPosition() const { return position; }
   double getAlleleFrequency() const { return allele_frequency; }
   const std::string &getChromosome() const { return chromosome; }
+  const std::vector<std::string> &getChromosomeOrder() const { return chromosome_order; }
+  const std::map<std::string, int> &getNlociMaskedPerChromosome() const { return nloci_masked_per_chromosome; }
 
  private:
-  Mask_Reader mask;
+  Mask mask;
   Sample_Mapper sample_mapper;
   LodCalculator calculator;
 
@@ -63,6 +69,11 @@ class Genotype_Reader {
   char ref;
   uint64_t position;
   double allele_frequency = 0;
+
+  std::string prev_chromosome;
+  uint64_t prev_position = 0;
+  std::vector<std::string> chromosome_order;
+  std::map<std::string, int> nloci_masked_per_chromosome;
 
   bool find_frequency();
   void process_line_buffer(bool selected);
