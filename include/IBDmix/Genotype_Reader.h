@@ -4,7 +4,7 @@
 #include <vector>
 #include <map>
 
-#include "IBDmix/Mask_Reader.h"
+#include "IBDmix/Mask.h"
 #include "IBDmix/Sample_Mapper.h"
 #include "IBDmix/lod_calculator.h"
 
@@ -16,12 +16,12 @@ constexpr unsigned char RECOVER_0_2 = 1 << 4;
 
 class Genotype_Reader {
  public:
-  Genotype_Reader(std::istream *genotype, std::istream *mask = nullptr,
+  Genotype_Reader(std::istream *genotype, std::istream *mask_stream = nullptr,
                   double archaic_error = 0.01, double modern_error_max = 0.002,
                   double modern_error_proportion = 2, double minesp = 1e-200,
                   int minor_allele_cutoff = 1)
       : genotype(genotype),
-        mask(mask),
+        mask(mask_stream),
         calculator(archaic_error, modern_error_max, modern_error_proportion,
                    minesp),
         minor_allele_cutoff(minor_allele_cutoff){}
@@ -50,7 +50,7 @@ class Genotype_Reader {
   const std::map<std::string, int> &getNlociMaskedPerChromosome() const { return nloci_masked_per_chromosome; }
 
  private:
-  Mask_Reader mask;
+  Mask mask;
   Sample_Mapper sample_mapper;
   LodCalculator calculator;
 
