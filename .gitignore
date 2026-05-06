@@ -1,6 +1,7 @@
 *.swp
 *.out
 .*
+!.github/
 build/
 debug/
 release/

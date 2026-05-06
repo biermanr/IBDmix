@@ -17,28 +17,65 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget ca-certificates
+          sudo apt-get install -y wget ca-certificates linux-tools-common linux-tools-$(uname -r)
 
       - name: Configure CMake
         run: |
-          cmake -B ${{github.workspace}}/build
+          cmake -B ${{github.workspace}}/build \
+            -DCMAKE_CXX_FLAGS="-O3 -fno-omit-frame-pointer -g"
           cmake --version
 
       - name: Build
         run: |
           cmake --build ${{github.workspace}}/build
 
+      - name: Clone FlameGraph
+        run: |
+          git clone --depth 1 https://github.com/brendangregg/FlameGraph.git
+
       - name: Prepare Data
         run: |
-          # Download genotype data
-          wget -q https://zenodo.org/records/15127123/files/cell_data_outputs_genotype_altai_1kg_20.gz
+          url_base="https://zenodo.org/records/15127123/files"
+
+          # Download VCF inputs for generate_gt
+          wget -q "${url_base}/cell_data_altai_chr20.vcf.gz"
+          wget -q "${url_base}/cell_data_mod_chr20.vcf.gz"
+          gunzip cell_data_altai_chr20.vcf.gz
+          gunzip cell_data_mod_chr20.vcf.gz
+
+          # Download genotype data for ibdmix
+          wget -q "${url_base}/cell_data_outputs_genotype_altai_1kg_20.gz"
           gunzip cell_data_outputs_genotype_altai_1kg_20.gz
 
-          # Download mask
-          wget -q https://zenodo.org/records/15127123/files/cell_data_masks_chr20.bed
+          # Download mask and sample
+          wget -q "${url_base}/cell_data_masks_chr20.bed"
+          wget -q "${url_base}/cell_data_samples_ACB.txt"
 
-          # Download the sample
-          wget -q https://zenodo.org/records/15127123/files/cell_data_samples_ACB.txt
+      - name: Allow perf for unprivileged users
+        run: |
+          sudo sysctl kernel.perf_event_paranoid=-1
+          sudo sysctl kernel.kptr_restrict=0
+
+      - name: Run generate_gt Timing Test
+        working-directory: ${{github.workspace}}
+        run: |
+          /usr/bin/time -v ./build/src/generate_gt \
+            --archaic cell_data_altai_chr20.vcf \
+            --modern cell_data_mod_chr20.vcf \
+            --output /dev/null
+
+      - name: Profile generate_gt
+        working-directory: ${{github.workspace}}
+        run: |
+          perf record -F 999 -g --call-graph dwarf -o perf_generate_gt.data -- \
+            ./build/src/generate_gt \
+              --archaic cell_data_altai_chr20.vcf \
+              --modern cell_data_mod_chr20.vcf \
+              --output /dev/null
+
+          perf script -i perf_generate_gt.data | \
+            FlameGraph/stackcollapse-perf.pl | \
+            FlameGraph/flamegraph.pl --title "generate_gt" > flamegraph_generate_gt.svg
 
       - name: Run IBDmix ACB Timing Test
         working-directory: ${{github.workspace}}
@@ -48,3 +85,25 @@ jobs:
             --mask cell_data_masks_chr20.bed \
             --sample cell_data_samples_ACB.txt \
             --output ibdmix_acb_timing_output.txt
+
+      - name: Profile IBDmix ACB
+        working-directory: ${{github.workspace}}
+        run: |
+          perf record -F 999 -g --call-graph dwarf -o perf_ibdmix.data -- \
+            ./build/src/ibdmix \
+              --genotype cell_data_outputs_genotype_altai_1kg_20 \
+              --mask cell_data_masks_chr20.bed \
+              --sample cell_data_samples_ACB.txt \
+              --output /dev/null
+
+          perf script -i perf_ibdmix.data | \
+            FlameGraph/stackcollapse-perf.pl | \
+            FlameGraph/flamegraph.pl --title "ibdmix ACB chr20" > flamegraph_ibdmix.svg
+
+      - name: Upload flamegraphs
+        uses: actions/upload-artifact@v4
+        with:
+          name: flamegraphs
+          path: |
+            flamegraph_generate_gt.svg
+            flamegraph_ibdmix.svg
