@@ -84,3 +84,63 @@ TEST(LodCalculator, CanGetModernError) {
   ASSERT_DOUBLE_EQ(0.02, calc.get_modern_error(0.01));
   ASSERT_TRUE(abs((calc.get_modern_error(0.99) - 0.02) / 0.02) < 0.001);
 }
+
+// --- --lod-prior fork ------------------------------------------------------
+// Stock IBDmix scores an uninformative cell 0, an implicit prior of even odds
+// on introgression. The fork replaces that 0 with --lod-prior. The invariant is
+// narrow on purpose: cells that stock scores 0 take the prior, and NOTHING else
+// may move.
+
+TEST(LodCalculator, LodPriorReplacesExactlyTheUninformativeZeros) {
+  double pbs[] = {0.01, 0.05, 0.1, 0.5, 0.9, 0.99};
+  char gts[] = {'0', '1', '2', '9'};
+  const double prior = -1.69;
+
+  for (double pb : pbs)
+    for (char arch : gts)
+      for (bool selected : {true, false}) {
+        LodCalculator stock(0.01, 0.002, 2, 1e-200);
+        LodCalculator fork(0.01, 0.002, 2, 1e-200, prior);
+        stock.update_lod_cache(arch, pb, selected);
+        fork.update_lod_cache(arch, pb, selected);
+
+        for (char mod : gts) {
+          double s = stock.calculate_lod(mod);
+          double f = fork.calculate_lod(mod);
+          std::string where = std::string("archaic ") + arch + " modern " +
+                              mod + " selected " + (selected ? "1" : "0") +
+                              " pb " + std::to_string(pb);
+          if (s == 0)
+            ASSERT_EQ(f, prior) << where;
+          else
+            ASSERT_EQ(f, s) << where;
+        }
+      }
+}
+
+// The RECOVER_0_2 / RECOVER_2_0 diagnostic mismatches are scored even on a line
+// that fails the mask or MAF filter -- they are real, strongly negative evidence
+// against IBD, and they are what breaks a run-on segment. The prior must not
+// overwrite them. Nothing at --lod-prior 0 can catch this being wrong, since
+// there the correct and the clobbered code agree.
+TEST(LodCalculator, LodPriorLeavesRecoveryCellsAlone) {
+  const double prior = -1.69;
+  LodCalculator stock(0.01, 0.002, 2, 1e-200);
+  LodCalculator fork(0.01, 0.002, 2, 1e-200, prior);
+
+  // archaic 0 with modern 2, on an unselected line
+  stock.update_lod_cache('0', 0.2, false);
+  fork.update_lod_cache('0', 0.2, false);
+  ASSERT_EQ(fork.calculate_lod('2'), stock.calculate_lod('2'));
+  ASSERT_LT(fork.calculate_lod('2'), 0);
+  ASSERT_EQ(fork.calculate_lod('0'), prior);
+  ASSERT_EQ(fork.calculate_lod('1'), prior);
+
+  // archaic 2 with modern 0, the mirror image
+  stock.update_lod_cache('2', 0.2, false);
+  fork.update_lod_cache('2', 0.2, false);
+  ASSERT_EQ(fork.calculate_lod('0'), stock.calculate_lod('0'));
+  ASSERT_LT(fork.calculate_lod('0'), 0);
+  ASSERT_EQ(fork.calculate_lod('1'), prior);
+  ASSERT_EQ(fork.calculate_lod('2'), prior);
+}

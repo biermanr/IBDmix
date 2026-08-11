@@ -21,8 +21,23 @@ void IBD_Segment::add_recorder(std::shared_ptr<Recorder> recorder) {
 }
 
 void IBD_Segment::add_lod(std::string chromosome, uint64_t position, double lod,
-                          unsigned char bitmask, std::ostream &output) {
+                          unsigned char bitmask, std::ostream &output,
+                          double gap_penalty) {
   if (chromosome != "") this->chromosome = chromosome;
+
+  // The bases between the previous locus and this one are pushed as their own
+  // node just ahead of the real site, rather than folded into the site's lod.
+  // add_node refuses to open a segment on a negative score, so folding would
+  // let a large gap penalty swallow an informative positive site and stop a new
+  // segment beginning there. Split this way, the reported start and end
+  // coordinates stay anchored on real sites.
+  //
+  // Skipping the push when no segment is open is purely to avoid a pool
+  // round-trip on every line: add_node would discard the node anyway.
+  if (gap_penalty != 0 && !(segment.empty() && gap_penalty < 0)) {
+    add_node(pool->get_node(position - 1, gap_penalty, GAP_PENALTY), output);
+  }
+
   // ignore negative lod as first entry
   if (segment.empty() && lod < 0) {
     return;

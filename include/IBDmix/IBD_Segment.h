@@ -13,8 +13,12 @@ class IBD_Segment {
   IBD_Segment(std::string name, double threshold, IBD_Pool *pool,
               bool exclusive_end = true);
   ~IBD_Segment();
+  // gap_penalty scores the bases lying strictly between the previous locus and
+  // this one; 0 (the default) reproduces stock IBDmix. IBD_Collection computes
+  // it once per line, since it is the same for every sample.
   void add_lod(std::string chromosome, uint64_t position, double lod,
-               unsigned char bitmask, std::ostream &output);
+               unsigned char bitmask, std::ostream &output,
+               double gap_penalty = 0.0);
   void add_recorder(std::shared_ptr<Recorder> recorder);
   void purge(std::ostream &output);
   int size() const;

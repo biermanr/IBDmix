@@ -66,6 +66,16 @@ int main(int argc, char *argv[]) {
                "Also include LOD scores of positive LOD as a CSV list. "
                "Same order as SNPs.");
 
+  double lod_prior = 0.0;
+  app.add_option("--lod-prior", lod_prior,
+                 "LOD per base pair for genome positions carrying no "
+                 "information: uninformative loci (missing archaic or modern "
+                 "genotype, masked, or MAF-filtered) and every base between "
+                 "consecutive loci. Stock IBDmix scores these 0, an implicit "
+                 "prior of even odds on introgression; a negative value makes "
+                 "evidence-free spans cost the running sum. Should be <= 0. "
+                 "The default of 0 reproduces stock IBDmix exactly.");
+
   CLI11_PARSE(app, argc, argv);
 
   std::ifstream genotype;
@@ -96,12 +106,12 @@ int main(int argc, char *argv[]) {
   Genotype_Reader reader(&genotype, &mask, archaic_error, modern_error_max,
                          modern_error_prop,
                          1e-200,  // minesp
-                         ma_threshold);
+                         ma_threshold, lod_prior);
 
   int num_samples = reader.initialize(sample, archaic);
   if (sample.is_open()) sample.close();
 
-  IBD_Collection ibds(LOD_threshold, exclusive_end);
+  IBD_Collection ibds(LOD_threshold, exclusive_end, lod_prior);
 
   ibds.initialize(reader);
   if (more_stats) ibds.add_recorder(IBD_Collection::Recorder::counts);

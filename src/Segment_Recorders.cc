@@ -16,6 +16,11 @@ void CountRecorder::initializeSegment() {
 
 void CountRecorder::record(const IBD_Node *node) {
   unsigned char bitmask = node->bitmask;
+  // A --lod-prior gap node stands for the bases between two loci, not a line of
+  // the genotype file. Counting it would inflate `sites` and `negative_lods`
+  // and change what those columns mean; SiteRecorder and LODRecorder already
+  // skip it, since they only record positive LODs.
+  if (bitmask & GAP_PENALTY) return;
   if ((bitmask & IN_MASK) && ((bitmask & MAF_LOW) || (bitmask & MAF_HIGH)))
     ++both;
   if ((bitmask & IN_MASK) && !(bitmask & MAF_LOW) && !(bitmask & MAF_HIGH))

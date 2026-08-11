@@ -8,11 +8,32 @@ void IBD_Collection::initialize(const Genotype_Reader &reader) {
 
 void IBD_Collection::update(const Genotype_Reader &reader,
                             std::ostream &output) {
-  for (unsigned int i = 0; i < IBDs.size(); i++) {
-    IBDs[i].add_lod(reader.getChromosome(), reader.getPosition(),
-                    reader.getLodScore(i),
-                    reader.getLineFilter() | reader.getRecoverType(i), output);
+  const std::string &chromosome = reader.getChromosome();
+  uint64_t position = reader.getPosition();
+
+  // Every base of the genome scores something: its own LOD where a locus exists,
+  // lod_prior everywhere else. Charge the bases lying strictly between the
+  // previous locus and this one. The gap is the same for every sample, so it is
+  // computed once here rather than inside the per-sample loop.
+  //
+  // Nothing is charged for the first line, across a change of chromosome, or
+  // for a repeated or out-of-order position -- multi-allelic rows share a
+  // coordinate, and an unsigned subtraction there would wrap into a huge
+  // positive score.
+  double gap_penalty = 0;
+  if (lod_prior != 0 && chromosome == previous_chromosome &&
+      position > previous_position + 1) {
+    gap_penalty = (position - previous_position - 1) * lod_prior;
   }
+
+  for (unsigned int i = 0; i < IBDs.size(); i++) {
+    IBDs[i].add_lod(chromosome, position, reader.getLodScore(i),
+                    reader.getLineFilter() | reader.getRecoverType(i), output,
+                    gap_penalty);
+  }
+
+  previous_chromosome = chromosome;
+  previous_position = position;
 }
 
 void IBD_Collection::purge(std::ostream &output) {

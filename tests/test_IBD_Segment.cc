@@ -794,3 +794,71 @@ TEST(IBDSegmentSites, CanRecordStatsInclusive) {
             "test\t2\t9\t9\t0.5\t1\t1\t0\t0\t0\t0\t0\t1\t0\t9\n");
   ASSERT_EQ(seg.size(), 0);
 }
+
+// --- --lod-prior fork ------------------------------------------------------
+// The bases between two loci arrive as a gap_penalty on the next add_lod, which
+// pushes them as their own node just ahead of the real site.
+
+TEST(IBDSegment, GapPenaltyEndsSegmentWhenItOutweighsTheRunningSum) {
+  IBD_Pool pool(10);
+  std::ostringstream output;
+  IBD_Segment seg("test", 0, &pool);
+
+  // Four positive sites: cumulative 1.0, running max at position 4.
+  for (uint64_t pos = 1; pos <= 4; ++pos)
+    seg.add_lod("1", pos, 0.25, none, output);
+  ASSERT_EQ(output.str(), "");
+
+  // A gap costing more than the whole accumulated sum drives it below 0 and
+  // closes the segment. Note what this says about the algorithm: the bar is the
+  // running sum from the segment START, not merely "the gap is negative".
+  seg.add_lod("1", 1000, 0.25, none, output, -2.0);
+  ASSERT_EQ(output.str(), "test\t1\t1\t999\t1\n");
+  // and the site that followed the gap opens a fresh segment
+  ASSERT_EQ(seg.size(), 1);
+}
+
+TEST(IBDSegment, GapPenaltySmallerThanRunningSumDoesNotSplit) {
+  IBD_Pool pool(10);
+  std::ostringstream output;
+  IBD_Segment seg("test", 0, &pool);
+
+  for (uint64_t pos = 1; pos <= 4; ++pos)
+    seg.add_lod("1", pos, 0.25, none, output);
+
+  // 1.0 - 0.5 stays above 0, so the segment runs straight through the gap --
+  // exactly the run-on the prior is meant to break, just not paid for yet.
+  seg.add_lod("1", 1000, 0.25, none, output, -0.5);
+  ASSERT_EQ(output.str(), "");
+}
+
+TEST(IBDSegment, GapPenaltyIgnoredWithNoSegmentOpen) {
+  IBD_Pool pool(10);
+  std::ostringstream output;
+  IBD_Segment seg("test", 0, &pool);
+
+  // Nothing to charge before a segment exists; the gap node must not be kept,
+  // and the segment must still open on the real site.
+  seg.add_lod("1", 1000, 0.25, none, output, -50.0);
+  ASSERT_EQ(seg.size(), 1);
+  ASSERT_EQ(output.str(), "");
+  ASSERT_EQ(pool.size(), 9);
+}
+
+// A gap node is a stand-in for bases, not a line of the genotype file, so the
+// -t count columns must ignore it.
+TEST(IBDSegment, GapPenaltyNodesAreNotCountedAsSites) {
+  IBD_Pool pool(10);
+  std::ostringstream plain, counted;
+  IBD_Segment seg("test", 0, &pool);
+  IBD_Segment seg_counted("test", 0, &pool);
+  seg_counted.add_recorder(std::make_shared<CountRecorder>());
+
+  for (auto *s : {&seg, &seg_counted}) {
+    s->add_lod("1", 1, 0.5, none, s == &seg ? plain : counted);
+    s->add_lod("1", 100, 0.5, none, s == &seg ? plain : counted, -0.01);
+    s->purge(s == &seg ? plain : counted);
+  }
+  // two sites, two positive lods, no negative lod from the gap node
+  ASSERT_THAT(counted.str(), ::testing::HasSubstr("\t2\t2\t0\t"));
+}

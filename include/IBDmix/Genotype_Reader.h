@@ -12,17 +12,21 @@ constexpr unsigned char MAF_LOW = 1 << 1;
 constexpr unsigned char MAF_HIGH = 1 << 2;
 constexpr unsigned char RECOVER_2_0 = 1 << 3;
 constexpr unsigned char RECOVER_0_2 = 1 << 4;
+// Marks a node that stands for the bases between two loci rather than a line of
+// the genotype file (see IBD_Segment::add_lod). Only set when --lod-prior is
+// nonzero, and skipped by CountRecorder so the -t columns keep counting rows.
+constexpr unsigned char GAP_PENALTY = 1 << 5;
 
 class Genotype_Reader {
  public:
   Genotype_Reader(std::istream *genotype, std::istream *mask = nullptr,
                   double archaic_error = 0.01, double modern_error_max = 0.002,
                   double modern_error_proportion = 2, double minesp = 1e-200,
-                  int minor_allele_cutoff = 1)
+                  int minor_allele_cutoff = 1, double lod_prior = 0.0)
       : genotype(genotype),
         mask(mask),
         calculator(archaic_error, modern_error_max, modern_error_proportion,
-                   minesp),
+                   minesp, lod_prior),
         minor_allele_cutoff(minor_allele_cutoff) {}
 
   int initialize(std::istream &samples, std::string archaic = "");

@@ -440,3 +440,40 @@ TEST_F(SampleGenotype, CanCheckLineFilter) {
   // eof
   ASSERT_FALSE(reader.update());
 }
+
+// --- --lod-prior fork ------------------------------------------------------
+// Read the whole fixture with and without a prior and compare cell by cell. The
+// fixture's masked line (pos 104 falls in the mask's (100, 120]) and its
+// low-MAF lines are what make this bite.
+TEST_F(SampleGenotype, LodPriorAppliesToUninformativeCells) {
+  const double prior = -1.69;
+  std::istringstream stock_gt(genotype.str()), fork_gt(genotype.str());
+  std::istringstream stock_mask(mask.str()), fork_mask(mask.str());
+
+  Genotype_Reader stock(&stock_gt, &stock_mask, 0.01, 0.002, 2, 1e-200, 1);
+  Genotype_Reader fork(&fork_gt, &fork_mask, 0.01, 0.002, 2, 1e-200, 1, prior);
+  std::istream stock_dummy(nullptr), fork_dummy(nullptr);
+  ASSERT_EQ(4, stock.initialize(stock_dummy));
+  ASSERT_EQ(4, fork.initialize(fork_dummy));
+
+  int lines = 0, priored = 0, untouched = 0;
+  while (stock.update()) {
+    ASSERT_TRUE(fork.update());
+    ++lines;
+    for (int i = 0; i < 4; ++i) {
+      double s = stock.getLodScore(i), f = fork.getLodScore(i);
+      if (s == 0) {
+        ASSERT_EQ(f, prior) << "line " << lines << " sample " << i;
+        ++priored;
+      } else {
+        ASSERT_EQ(f, s) << "line " << lines << " sample " << i;
+        ++untouched;
+      }
+    }
+  }
+  ASSERT_FALSE(fork.update());
+  ASSERT_EQ(lines, 7);
+  // Both branches must actually be exercised, or the test proves nothing.
+  ASSERT_GT(priored, 0);
+  ASSERT_GT(untouched, 0);
+}
