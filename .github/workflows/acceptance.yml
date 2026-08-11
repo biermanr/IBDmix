@@ -1,70 +1,40 @@
 name: AcceptanceTests
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 # TODO: generate_gt, generate_gt with tabs, population with mask, all with mask
 # all with no mask, inclusive end and stats
 jobs:
-  generate_gt:
-    name: Generate GT
+  acceptance_tests:
+    name: Acceptance Tests
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-      - name: Chromosome 20, all populations
-        uses: ./.github/actions/acceptance_test
-        with:
-          type: gen_20
+    strategy:
+      matrix:
+        test_type: [gen_20, populations, all_mask, all_no_mask, extra]
 
-  populations:
-    name: Population ibdmix
-    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v1
+      - name: Setup CMake
+        uses: jwlawson/actions-setup-cmake@v2
         with:
-          fetch-depth: 1
-      - name: Chromosome 20, different populations
-        uses: ./.github/actions/acceptance_test
-        with:
-          type: populations
+          cmake-version: '3.16.x'
 
-  all_mask:
-    name: All samples with mask
-    runs-on: ubuntu-latest
-    steps:
       - name: Checkout
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-      - name: All populations with a mask
-        uses: ./.github/actions/acceptance_test
-        with:
-          type: all_mask
+        uses: actions/checkout@v4
 
-  all_no_mask:
-    name: All samples without mask
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-      - name: All populations without a mask
-        uses: ./.github/actions/acceptance_test
-        with:
-          type: all_no_mask
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget ca-certificates
 
-  extras:
-    name: Test extra options
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v1
-        with:
-          fetch-depth: 1
-      - name: GWD with stats and inclusive
-        uses: ./.github/actions/acceptance_test
-        with:
-          type: extra
+      - name: Configure CMake
+        run: |
+          cmake -B ${{github.workspace}}/build
+          cmake --version
+
+      - name: Build
+        run: |
+          cmake --build ${{github.workspace}}/build
+
+      - name: ${{ matrix.test_type }}
+        working-directory: ${{github.workspace}}
+        run: |
+          ./scripts/acceptance_test.sh ${{ matrix.test_type }}
